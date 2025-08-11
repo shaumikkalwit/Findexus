@@ -1,0 +1,4 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/sec-data-api/venv/bin/python3",
+   "python.terminal.activateEnvironment": true
+}
