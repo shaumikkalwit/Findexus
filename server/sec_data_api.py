@@ -65,6 +65,30 @@ class SECDataAPI:
 if __name__ == "__main__":
     set_identity("email.email@gmail.com")
     company = Company("AAPL")
+
+    if not company.facts:
+        print("non here")
+        pass
+
+    # Get annual data for specified years
+    financial_data = {
+        'company': {
+            'name': company.name,
+            'ticker': "AAPL"
+            # 'shares_outstanding': company.shares_outstanding,
+            # 'public_float': company.public_float
+        },
+        'income_statement': company.income_statement(periods=20, annual=True),
+        'balance_sheet': company.balance_sheet(periods=20, annual=True),
+        'cash_flow': company.cash_flow(periods=20, annual=True)
+    }
+
+    print(financial_data)
+    # income_stmt = company.income_statement(periods=20, annual=True)
+    # print(f"Retrieved {len(income_stmt.periods)} periods of data")
+
+        
+    # print(stmt.to_dict())
     # stmt = company.income_statement(periods=4)
     # print(type(stmt))
     # # Basic iteration over all items
@@ -94,23 +118,37 @@ if __name__ == "__main__":
     # tenk = latest_10k.obj()
     # income_stmt = tenk.income_statement
     # income_data_list = income_stmt.to_dict(orient="records")
-    filings = company.get_filings(form="10-K").head(2)  # head does NOTHING here !!!!!!!!
-    # income_statement = company.income_statement()
-    # print(type(income_statement))
+    
+    
+    
+    
+    
+    
+    
+    
+    # filings = company.get_filings(form="10-K").head(2)  # head does NOTHING here !!!!!!!!
+    # # income_statement = company.income_statement()
+    # # print(type(income_statement))
 
-    # Create multi-period financials
-    multi_financials = MultiFinancials.extract(filings)
+    # # Create multi-period financials
+    # multi_financials = MultiFinancials.extract(filings)
 
-    # Access statements spanning multiple years
-    balance_sheet = multi_financials.balance_sheet()
-    income_statement = multi_financials.income_statement()
-    cash_flow = multi_financials.cashflow_statement()
+    # # Access statements spanning multiple years
+    # balance_sheet = multi_financials.balance_sheet()
+    # income_statement = multi_financials.income_statement()
+    # cash_flow = multi_financials.cashflow_statement()
 
-    print("Multi-Year Income Statement:")
-    df = income_statement.to_dataframe()
-    print(jsonable_encoder(df.to_dict(orient="records")))
+    # print("Multi-Year Income Statement:")
+    # df = income_statement.to_dataframe()
+    # print(jsonable_encoder(df.to_dict(orient="records")))
     # income_data_list = income_statement.to_dict(orient="records")
     # print(income_data_list)
+    
+    
+    
+    
+    
+    
     # print(type(income_data_list))
 
     # print("--- Running sec_data.py directly ---")
