@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware # Import this
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import pandas as pd
@@ -12,6 +13,19 @@ logger = logging.getLogger(__name__)
 set_identity("shaumik.kalwit@gmail.com")
 
 app = FastAPI(title="Financial Statements API", version="1.0.0")
+
+# Add this CORS middleware section
+origins = [
+    "http://localhost:3000", # The origin of your Next.js app
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"], # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"], # Allows all headers
+)
 
 class FinancialResponse(BaseModel):
     company_info: Dict[str, Any]
