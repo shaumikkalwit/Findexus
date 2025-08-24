@@ -10,3 +10,12 @@ export type FinancialData = {
     }
   };
 };
+
+export type ComprehensiveData = {
+    company_info: { name: string; ticker: string };
+    periods: string[];
+    income_statement: FinancialData['data'];
+    balance_sheet: FinancialData['data'];
+    cash_flow: FinancialData['data'];
+    key_metrics: { [metric: string]: number };
+};
