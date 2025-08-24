@@ -17,5 +17,9 @@ export type ComprehensiveData = {
     income_statement: FinancialData['data'];
     balance_sheet: FinancialData['data'];
     cash_flow: FinancialData['data'];
-    key_metrics: { [metric: string]: number };
+    key_metrics: { 
+        [metricName: string]: { 
+            [period: string]: number 
+        } 
+    };
 };

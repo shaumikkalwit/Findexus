@@ -7,7 +7,8 @@ export default function ComprehensiveView({ data }: { data: ComprehensiveData })
         <div className="space-y-8">
             <div>
                 <h2 className="text-2xl font-bold text-white border-b border-gray-700 pb-2 mb-4">Key Metrics</h2>
-                <KeyMetricsDisplay metrics={data.key_metrics} />
+                {/* Pass the periods array to the KeyMetricsDisplay component */}
+                <KeyMetricsDisplay metrics={data.key_metrics} periods={data.periods} />
             </div>
             <div>
                 <h2 className="text-2xl font-bold text-white border-b border-gray-700 pb-2 mb-4">Income Statement</h2>

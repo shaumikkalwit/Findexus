@@ -193,7 +193,11 @@ def _find_financial_item(statement, possible_names):
 
 def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
     """Calculate key financial ratios from statements"""
-    ratios = {}
+    ratios = {
+        "Profit Margin": {},
+        "Return on Assets": {},
+        "Return on Equity": {}
+    }
     try:
         # Find the items once, more robustly
         revenue_item = _find_financial_item(income_stmt, ['Revenue', 'Revenues', 'SalesRevenueNet'])
@@ -214,14 +218,16 @@ def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
 
             # Profitability Ratios
             if revenue and net_income and revenue != 0:
-                ratios[f'profit_margin_{period}'] = net_income / revenue
+                ratios["Profit Margin"][period] = net_income / revenue
 
             # Return Ratios
             if net_income and total_assets and total_assets != 0:
-                ratios[f'return_on_assets_{period}'] = net_income / total_assets
+                ratios["Return on Assets"][period] = net_income / total_assets
             if net_income and total_equity and total_equity != 0:
-                ratios[f'return_on_equity_{period}'] = net_income / total_equity
+                ratios["Return on Equity"][period] = net_income / total_equity
                 
     except Exception as e:
         logger.error(f"Error calculating ratios: {e}", exc_info=True)
-    return ratios
+    
+    # Filter out empty metrics
+    return {k: v for k, v in ratios.items() if v}
