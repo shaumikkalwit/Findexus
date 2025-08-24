@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
+import Link from 'next/link';
 
 // Define the type for our financial data (same as before)
 type FinancialData = {
@@ -16,17 +17,37 @@ type FinancialData = {
   };
 };
 
+function SkeletonTable() {
+    return (
+        <div className="overflow-x-auto mt-6 animate-pulse">
+            <div className="w-full bg-gray-800 border border-gray-700 rounded-lg shadow-sm">
+                <div className="bg-gray-700 h-12 rounded-t-lg"></div>
+                {[...Array(15)].map((_, i) => (
+                    <div key={i} className="flex items-center p-3 border-b border-gray-700">
+                        <div className="h-4 bg-gray-600 rounded w-1/4"></div>
+                        <div className="flex-1 flex justify-end space-x-4">
+                            <div className="h-4 bg-gray-600 rounded w-16"></div>
+                            <div className="h-4 bg-gray-600 rounded w-16"></div>
+                            <div className="h-4 bg-gray-600 rounded w-16"></div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 // A reusable component to display the financial table
 function FinancialTable({ data }: { data: FinancialData }) {
     const dataItems = Object.values(data.data);
     return (
         <div className="overflow-x-auto mt-6">
-            <table className="min-w-full bg-white border rounded-lg shadow-sm">
-                <thead className="bg-gray-100">
+            <table className="min-w-full bg-gray-800 border border-gray-700 rounded-lg shadow-sm">
+                <thead className="bg-gray-700">
                     <tr>
-                        <th className="text-left font-semibold p-3 border-b">Metric</th>
+                        <th className="text-left font-semibold text-gray-300 p-3 border-b border-gray-600">Metric</th>
                         {data.periods.map((period) => (
-                            <th key={period} className="text-right font-semibold p-3 border-b">
+                            <th key={period} className="text-right font-semibold text-gray-300 p-3 border-b border-gray-600">
                                 {period}
                             </th>
                         ))}
@@ -34,14 +55,14 @@ function FinancialTable({ data }: { data: FinancialData }) {
                 </thead>
                 <tbody>
                     {dataItems.map((item) => (
-                        <tr key={item.concept} className="hover:bg-gray-50">
-                            <td className="p-3 border-b font-medium" style={{ paddingLeft: `${item.depth * 1.5 + 1}rem` }}>
+                        <tr key={item.concept} className="hover:bg-gray-700">
+                            <td className="p-3 border-b border-gray-600 text-gray-300 font-medium" style={{ paddingLeft: `${item.depth * 1.5 + 1}rem` }}>
                                 {item.label}
                             </td>
                             {data.periods.map((period) => (
-                                <td key={period} className="p-3 border-b text-right font-mono">
+                                <td key={period} className="p-3 border-b border-gray-600 text-gray-300 text-right font-mono">
                                     {item.values[period]?.display_value ?? '—'}
-                                T</td>
+                                </td>
                             ))}
                         </tr>
                     ))}
@@ -60,17 +81,27 @@ export default function FinancialsPage({ params }: { params: Promise<{ ticker: s
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState('');
+  const [years, setYears] = useState<number>(10);
 
-  const fetchFinancialData = async (type: string) => {
+  // Function to determine button classes based on active state
+  const getButtonClasses = (type: string) => {
+    const baseClasses = "px-4 py-2 font-semibold rounded-md transition-colors duration-200";
+    if (statementType === type) {
+        return `${baseClasses} bg-blue-600 text-white`; // Active state
+    }
+    return `${baseClasses} bg-gray-700 text-gray-300 hover:bg-gray-600`; // Inactive state
+  };
+
+  const fetchFinancialData = async (type: string, numYears: number) => {
     if (!ticker) return;
 
     setStatementType(type);
     setIsLoading(true);
     setError(null);
-    setFinancialData(null); // Clear previous data
+    setFinancialData(null); 
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/financial/${ticker}/${type}`);
+      const res = await fetch(`http://127.0.0.1:8000/financial/${ticker}/${type}?years=${numYears}`);
       
       if (!res.ok) {
         const errorData = await res.json();
@@ -79,7 +110,7 @@ export default function FinancialsPage({ params }: { params: Promise<{ ticker: s
 
       const data = await res.json();
       setFinancialData(data);
-      setCompanyName(data.company_info.name); // Store company name
+      if(!companyName) setCompanyName(data.company_info.name); 
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -87,40 +118,73 @@ export default function FinancialsPage({ params }: { params: Promise<{ ticker: s
     }
   };
   
-  // Fetch company name once on initial load for the header
   useEffect(() => {
     const fetchCompanyName = async () => {
+        if (!ticker) return;
         try {
             const res = await fetch(`http://127.0.0.1:8000/financial/${ticker}/income?years=5`);
             if (res.ok) {
                 const data = await res.json();
                 setCompanyName(data.company_info.name);
-            }
+            } else { throw new Error(); }
         } catch (e) {
-            console.error("Could not pre-fetch company name.");
+            setError(`Could not find data for ticker: ${ticker.toUpperCase()}`);
         }
     };
     fetchCompanyName();
   }, [ticker]);
 
+  useEffect(() => {
+    if (statementType) {
+        fetchFinancialData(statementType, years);
+    }
+  }, [years]);
+
 
   return (
-    <main className="p-4 md:p-8 bg-gray-50 min-h-screen">
+    <main className="p-4 md:p-8 bg-gray-900 text-gray-200 min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2 text-gray-800">
+        <div className="mb-6">
+            <Link href="/" className="inline-flex items-center gap-2 text-blue-400 hover:underline text-sm font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Back to Search
+            </Link>
+        </div>
+
+        <h1 className="text-3xl font-bold mb-2 text-white">
           {companyName || ticker.toUpperCase()}
         </h1>
-        <p className="text-lg text-gray-500 mb-6">Select a financial statement to view.</p>
+        <p className="text-lg text-gray-400 mb-6">Select a financial statement to view.</p>
 
-        <div className="flex space-x-4">
-          <button onClick={() => fetchFinancialData('income')} className="px-4 py-2 font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition">Income Statement</button>
-          <button onClick={() => fetchFinancialData('balance')} className="px-4 py-2 font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 transition">Balance Sheet</button>
-          <button onClick={() => fetchFinancialData('cashflow')} className="px-4 py-2 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition">Cash Flow</button>
+        <div className="flex flex-wrap items-center gap-4">
+          <button onClick={() => fetchFinancialData('income', years)} className={getButtonClasses('income')}>Income Statement</button>
+          <button onClick={() => fetchFinancialData('balance', years)} className={getButtonClasses('balance')}>Balance Sheet</button>
+          <button onClick={() => fetchFinancialData('cashflow', years)} className={getButtonClasses('cashflow')}>Cash Flow</button>
+          
+          <div className="relative ml-auto">
+            <label htmlFor="years-select" className="sr-only">Number of Years</label>
+            <select 
+                id="years-select"
+                value={years}
+                onChange={(e) => setYears(Number(e.target.value))}
+                className="appearance-none bg-gray-700 border border-gray-600 rounded-md py-2 pl-3 pr-8 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+                <option value="5">5 Years</option>
+                <option value="10">10 Years</option>
+                <option value="15">15 Years</option>
+                <option value="20">20 Years</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+            </div>
+          </div>
         </div>
 
         <div className="mt-8">
-            {isLoading && <p className="text-center">Loading...</p>}
-            {error && <p className="text-center text-red-500">Error: {error}</p>}
+            {isLoading && <SkeletonTable />}
+            {error && <p className="text-center text-red-400 p-4 bg-red-900 bg-opacity-30 rounded-lg">Error: {error}</p>}
             {financialData && <FinancialTable data={financialData} />}
         </div>
       </div>
