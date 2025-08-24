@@ -2,76 +2,9 @@
 
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
-
-// Define the type for our financial data (same as before)
-type FinancialData = {
-  company_info: { name: string; ticker: string };
-  periods: string[];
-  data: {
-    [concept:string]: {
-        label: string;
-        concept: string;
-        values: { [period:string]: { display_value: string } };
-        depth: number;
-    }
-  };
-};
-
-function SkeletonTable() {
-    return (
-        <div className="overflow-x-auto mt-6 animate-pulse">
-            <div className="w-full bg-gray-800 border border-gray-700 rounded-lg shadow-sm">
-                <div className="bg-gray-700 h-12 rounded-t-lg"></div>
-                {[...Array(15)].map((_, i) => (
-                    <div key={i} className="flex items-center p-3 border-b border-gray-700">
-                        <div className="h-4 bg-gray-600 rounded w-1/4"></div>
-                        <div className="flex-1 flex justify-end space-x-4">
-                            <div className="h-4 bg-gray-600 rounded w-16"></div>
-                            <div className="h-4 bg-gray-600 rounded w-16"></div>
-                            <div className="h-4 bg-gray-600 rounded w-16"></div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-// A reusable component to display the financial table
-function FinancialTable({ data }: { data: FinancialData }) {
-    const dataItems = Object.values(data.data);
-    return (
-        <div className="overflow-x-auto mt-6">
-            <table className="min-w-full bg-gray-800 border border-gray-700 rounded-lg shadow-sm">
-                <thead className="bg-gray-700">
-                    <tr>
-                        <th className="text-left font-semibold text-gray-300 p-3 border-b border-gray-600">Metric</th>
-                        {data.periods.map((period) => (
-                            <th key={period} className="text-right font-semibold text-gray-300 p-3 border-b border-gray-600">
-                                {period}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody>
-                    {dataItems.map((item) => (
-                        <tr key={item.concept} className="hover:bg-gray-700">
-                            <td className="p-3 border-b border-gray-600 text-gray-300 font-medium" style={{ paddingLeft: `${item.depth * 1.5 + 1}rem` }}>
-                                {item.label}
-                            </td>
-                            {data.periods.map((period) => (
-                                <td key={period} className="p-3 border-b border-gray-600 text-gray-300 text-right font-mono">
-                                    {item.values[period]?.display_value ?? '—'}
-                                </td>
-                            ))}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-}
-
+import { FinancialData } from '@/lib/types';
+import SkeletonTable from '@/components/SkeletonTable';
+import FinancialTable from '@/components/FinancialTable';
 
 export default function FinancialsPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = use(params);
