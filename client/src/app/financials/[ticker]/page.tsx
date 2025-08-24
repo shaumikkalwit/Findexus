@@ -1,25 +1,6 @@
-// // src/app/api/stock/[ticker]/route.ts
-// // This file handles GET requests to /api/stock/[ticker]
+'use client';
 
-// import { NextRequest, NextResponse } from 'next/server';
-
-// export async function GET(
-//   request: NextRequest, // The incoming request object
-//   { params }: { params: Promise<{ ticker: string }> }
-// ) {
-//   const { ticker } = await params; // Get the ticker from the URL (e.g., 'AAPL' from /api/stock/AAPL)
-
-//   if (!ticker) {
-//     // If no ticker was provided in the URL, return a bad request error
-//     return NextResponse.json(
-//       { message: 'Stock ticker is required.' },
-//       { status: 400 }
-//     );
-//   }
-// }
-'use client'; // This is now a Client Component
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 
 // Define the type for our financial data (same as before)
 type FinancialData = {
@@ -71,7 +52,9 @@ function FinancialTable({ data }: { data: FinancialData }) {
 }
 
 
-export default function FinancialsPage({ params }: { params: { ticker: string } }) {
+export default function FinancialsPage({ params }: { params: Promise<{ ticker: string }> }) {
+  const { ticker } = use(params);
+
   const [statementType, setStatementType] = useState<string | null>(null);
   const [financialData, setFinancialData] = useState<FinancialData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,7 +62,7 @@ export default function FinancialsPage({ params }: { params: { ticker: string } 
   const [companyName, setCompanyName] = useState('');
 
   const fetchFinancialData = async (type: string) => {
-    if (!params.ticker) return;
+    if (!ticker) return;
 
     setStatementType(type);
     setIsLoading(true);
@@ -87,7 +70,7 @@ export default function FinancialsPage({ params }: { params: { ticker: string } 
     setFinancialData(null); // Clear previous data
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/financial/${params.ticker}/${type}`);
+      const res = await fetch(`http://127.0.0.1:8000/financial/${ticker}/${type}`);
       
       if (!res.ok) {
         const errorData = await res.json();
@@ -108,7 +91,7 @@ export default function FinancialsPage({ params }: { params: { ticker: string } 
   useEffect(() => {
     const fetchCompanyName = async () => {
         try {
-            const res = await fetch(`http://127.0.0.1:8000/financial/${params.ticker}/income?years=5`);
+            const res = await fetch(`http://127.0.0.1:8000/financial/${ticker}/income?years=5`);
             if (res.ok) {
                 const data = await res.json();
                 setCompanyName(data.company_info.name);
@@ -118,14 +101,14 @@ export default function FinancialsPage({ params }: { params: { ticker: string } 
         }
     };
     fetchCompanyName();
-  }, [params.ticker]);
+  }, [ticker]);
 
 
   return (
     <main className="p-4 md:p-8 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-2 text-gray-800">
-          {companyName || params.ticker.toUpperCase()}
+          {companyName || ticker.toUpperCase()}
         </h1>
         <p className="text-lg text-gray-500 mb-6">Select a financial statement to view.</p>
 
