@@ -219,6 +219,8 @@ def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
             # Profitability Ratios
             if revenue and net_income and revenue != 0:
                 ratios["Profit Margin"][period] = net_income / revenue
+            else:
+                ratios["Profit Margin"][period] = revenue
 
             # Return Ratios
             if net_income and total_assets and total_assets != 0:
@@ -230,4 +232,4 @@ def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
         logger.error(f"Error calculating ratios: {e}", exc_info=True)
     
     # Filter out empty metrics
-    return {k: v for k, v in ratios.items() if v}
+    return {k: v for k, v in ratios.items() if v} 
