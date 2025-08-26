@@ -183,53 +183,65 @@ def _convert_statement_to_dict(stmt):
         data[item.concept] = item_data
     return data
 
-def _find_financial_item(statement, possible_names):
-    """Helper function to find an item in a statement from a list of possible names."""
-    for name in possible_names:
-        item = statement.find_item(name)
-        if item:
+def _find_item_contains(statement, keyword):
+    """Finds the first item in a statement where the label contains the keyword."""
+    if not statement:
+        return None
+    for item in statement.iter_with_values():
+        if keyword.lower() in item.label.lower():
             return item
     return None
 
 def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
-    """Calculate key financial ratios from statements"""
+    """Calculate key financial ratios from statements based on Buffett's principles."""
     ratios = {
-        "Profit Margin": {},
-        "Return on Assets": {},
-        "Return on Equity": {}
+        "Net Income": {},
+        "Retained Earnings": {},
+        "Gross Margin": {},
+        "Net Margin": {},
+        "Return on Equity (ROE)": {},
+        "Years to Pay Off Debt": {},
+        "Capex to Net Income": {}
     }
     try:
-        # Find the items once, more robustly
-        revenue_item = _find_financial_item(income_stmt, ['Revenue', 'Revenues', 'SalesRevenueNet'])
-        net_income_item = _find_financial_item(income_stmt, ['NetIncomeLoss'])
-        assets_item = _find_financial_item(balance_sheet, ['Assets'])
-        equity_item = _find_financial_item(balance_sheet, ['StockholdersEquity', 'LiabilitiesAndStockholdersEquity'])
-
-        if not all([revenue_item, net_income_item, assets_item, equity_item]):
-            logger.warning("Could not find all necessary items for ratio calculation.")
-            return {}
+        # Find the necessary items using the robust "contains" search
+        revenue_item = _find_item_contains(income_stmt, 'Revenue')
+        gross_profit_item = _find_item_contains(income_stmt, 'Gross Profit')
+        net_income_item = _find_item_contains(income_stmt, 'Net Income')
+        equity_item = _find_item_contains(balance_sheet, 'Equity')
+        long_term_debt_item = _find_item_contains(balance_sheet, 'Long-Term Debt')
+        retained_earnings_item = _find_item_contains(balance_sheet, 'Retained Earnings')
+        capex_item = _find_item_contains(cash_flow, 'property, plant, and equipment')
 
         for period in income_stmt.periods:
             # Get values for the current period
-            revenue = revenue_item.values.get(period)
-            net_income = net_income_item.values.get(period)
-            total_assets = assets_item.values.get(period)
-            total_equity = equity_item.values.get(period)
+            revenue = revenue_item.values.get(period) if revenue_item else None
+            gross_profit = gross_profit_item.values.get(period) if gross_profit_item else None
+            net_income = net_income_item.values.get(period) if net_income_item else None
+            total_equity = equity_item.values.get(period) if equity_item else None
+            long_term_debt = long_term_debt_item.values.get(period) if long_term_debt_item else 0
+            retained_earnings = retained_earnings_item.values.get(period) if retained_earnings_item else None
+            capex = capex_item.values.get(period) if capex_item else None
 
-            # Profitability Ratios
+            # --- Raw Values ---
+            if net_income is not None:
+                ratios["Net Income"][period] = net_income
+            if retained_earnings is not None:
+                ratios["Retained Earnings"][period] = retained_earnings
+
+            # --- Buffett Ratios ---
+            if revenue and gross_profit and revenue != 0:
+                ratios["Gross Margin"][period] = gross_profit / revenue
             if revenue and net_income and revenue != 0:
-                ratios["Profit Margin"][period] = net_income / revenue
-            else:
-                ratios["Profit Margin"][period] = revenue
-
-            # Return Ratios
-            if net_income and total_assets and total_assets != 0:
-                ratios["Return on Assets"][period] = net_income / total_assets
+                ratios["Net Margin"][period] = net_income / revenue
             if net_income and total_equity and total_equity != 0:
-                ratios["Return on Equity"][period] = net_income / total_equity
+                ratios["Return on Equity (ROE)"][period] = net_income / total_equity
+            if net_income and net_income != 0:
+                 ratios["Years to Pay Off Debt"][period] = long_term_debt / net_income
+            if net_income and capex and net_income != 0:
+                ratios["Capex to Net Income"][period] = abs(capex) / net_income
                 
     except Exception as e:
         logger.error(f"Error calculating ratios: {e}", exc_info=True)
     
-    # Filter out empty metrics
-    return {k: v for k, v in ratios.items() if v} 
+    return {k: v for k, v in ratios.items() if v}
