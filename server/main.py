@@ -42,6 +42,15 @@ class ComprehensiveFinancialResponse(BaseModel):
     cash_flow: Dict[str, Any]
     key_metrics: Dict[str, Any]
     metadata: Dict[str, Any]
+    
+class CompanyMetrics(BaseModel):
+    ticker: str
+    name: str
+    metrics: Dict[str, Dict[str, float | None]]
+    
+class ComparisonResponse(BaseModel):
+    periods: List[str]
+    data: List[CompanyMetrics]
 
 # --- Existing Endpoints ---
 
@@ -184,27 +193,19 @@ def _convert_statement_to_dict(stmt):
     return data
 
 def _find_item_contains(statement, keyword):
-    """Finds the first item in a statement where the label contains the keyword."""
-    if not statement:
-        return None
+    if not statement: return None
     for item in statement.iter_with_values():
         if keyword.lower() in item.label.lower():
             return item
     return None
 
 def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
-    """Calculate key financial ratios from statements based on Buffett's principles."""
     ratios = {
-        "Net Income": {},
-        "Retained Earnings": {},
-        "Gross Margin": {},
-        "Net Margin": {},
-        "Return on Equity (ROE)": {},
-        "Years to Pay Off Debt": {},
+        "Net Income": {}, "Retained Earnings": {}, "Gross Margin": {},
+        "Net Margin": {}, "Return on Equity (ROE)": {}, "Years to Pay Off Debt": {},
         "Capex to Net Income": {}
     }
     try:
-        # Find the necessary items using the robust "contains" search
         revenue_item = _find_item_contains(income_stmt, 'Revenue')
         gross_profit_item = _find_item_contains(income_stmt, 'Gross Profit')
         net_income_item = _find_item_contains(income_stmt, 'Net Income')
@@ -213,8 +214,7 @@ def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
         retained_earnings_item = _find_item_contains(balance_sheet, 'Retained Earnings')
         capex_item = _find_item_contains(cash_flow, 'property, plant, and equipment')
 
-        for period in income_stmt.periods:
-            # Get values for the current period
+        for i, period in enumerate(income_stmt.periods):
             revenue = revenue_item.values.get(period) if revenue_item else None
             gross_profit = gross_profit_item.values.get(period) if gross_profit_item else None
             net_income = net_income_item.values.get(period) if net_income_item else None
@@ -223,25 +223,74 @@ def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
             retained_earnings = retained_earnings_item.values.get(period) if retained_earnings_item else None
             capex = capex_item.values.get(period) if capex_item else None
 
-            # --- Raw Values ---
-            if net_income is not None:
-                ratios["Net Income"][period] = net_income
-            if retained_earnings is not None:
-                ratios["Retained Earnings"][period] = retained_earnings
+            if net_income is not None: ratios["Net Income"][period] = net_income
+            if retained_earnings is not None: ratios["Retained Earnings"][period] = retained_earnings
+            if revenue and gross_profit and revenue != 0: ratios["Gross Margin"][period] = gross_profit / revenue
+            if revenue and net_income and revenue != 0: ratios["Net Margin"][period] = net_income / revenue
+            if net_income and total_equity and total_equity != 0: ratios["Return on Equity (ROE)"][period] = net_income / total_equity
+            if net_income and net_income != 0: ratios["Years to Pay Off Debt"][period] = long_term_debt / net_income
+            if net_income and capex and net_income != 0: ratios["Capex to Net Income"][period] = abs(capex) / net_income
 
-            # --- Buffett Ratios ---
-            if revenue and gross_profit and revenue != 0:
-                ratios["Gross Margin"][period] = gross_profit / revenue
-            if revenue and net_income and revenue != 0:
-                ratios["Net Margin"][period] = net_income / revenue
-            if net_income and total_equity and total_equity != 0:
-                ratios["Return on Equity (ROE)"][period] = net_income / total_equity
-            if net_income and net_income != 0:
-                 ratios["Years to Pay Off Debt"][period] = long_term_debt / net_income
-            if net_income and capex and net_income != 0:
-                ratios["Capex to Net Income"][period] = abs(capex) / net_income
-                
+            # Calculate YoY growth for each metric
+            if i < len(income_stmt.periods) - 1:
+                prev_period = income_stmt.periods[i+1]
+                for metric, values in ratios.items():
+                    current_value = values.get(period)
+                    prev_value = values.get(prev_period)
+                    if current_value is not None and prev_value is not None and prev_value != 0:
+                        growth = (current_value - prev_value) / abs(prev_value)
+                        if f"{metric} YoY Growth" not in ratios:
+                            ratios[f"{metric} YoY Growth"] = {}
+                        ratios[f"{metric} YoY Growth"][period] = growth
+
     except Exception as e:
         logger.error(f"Error calculating ratios: {e}", exc_info=True)
-    
     return {k: v for k, v in ratios.items() if v}
+
+# --- NEW Comparison Endpoint ---
+@app.post("/financials/compare", response_model=ComparisonResponse)
+async def compare_companies_ratios(
+    tickers: List[str],
+    periods: int = Query(5, description="Number of periods", ge=1, le=10)
+):
+    """Compare financial ratios across multiple companies."""
+    comparison_data = []
+    all_periods = set()
+
+    for ticker in tickers:
+        try:
+            company = Company(ticker.upper())
+            if not company.facts: continue
+
+            income_stmt = company.income_statement(periods=periods, annual=True, concise_format=True)
+            balance_sheet = company.balance_sheet(periods=periods, annual=True, concise_format=True)
+            cash_flow = company.cash_flow(periods=periods, annual=True, concise_format=True)
+
+            if not income_stmt: continue
+            
+            for p in income_stmt.periods: all_periods.add(p)
+
+            metrics = _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow)
+            
+            comparison_data.append(CompanyMetrics(
+                ticker=ticker.upper(),
+                name=company.name,
+                metrics=metrics
+            ))
+        except Exception as e:
+            logger.error(f"Could not process {ticker} for comparison: {e}")
+            continue
+
+    if not comparison_data:
+        raise HTTPException(status_code=404, detail="Could not retrieve data for any of the provided tickers.")
+
+    sorted_periods = sorted(list(all_periods), reverse=True)
+    
+    # Ensure all companies have all periods for all metrics, filling with None if missing
+    for company_data in comparison_data:
+        for metric in company_data.metrics:
+            for period in sorted_periods:
+                if period not in company_data.metrics[metric]:
+                    company_data.metrics[metric][period] = None
+
+    return ComparisonResponse(periods=sorted_periods, data=comparison_data)
