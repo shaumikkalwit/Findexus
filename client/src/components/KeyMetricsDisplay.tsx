@@ -17,12 +17,24 @@ const formatMetricValue = (metricName: string, value: number): string => {
     return value.toFixed(2);
 };
 
-// Helper to get conditional text color classes based on Buffett's rules
-const getMetricStyles = (metricName: string, value: number): string => {
+const getMetricStyles = (metricName: string, value: number | null, prevValue: number | null): string => {
     const name = metricName.toLowerCase();
-    let colorClass = 'text-gray-300'; // Default color for neutral metrics like ROE
+    let colorClass = 'text-gray-300';
 
-    if (name.includes('gross margin')) {
+    if (value === null || value === undefined) {
+        return `p-3 border-b border-gray-600 text-left ${colorClass}`;
+    }
+
+    if (name.includes('net income') || name.includes('retained earnings') || name.includes('return on equity (roe)')) {
+        if (prevValue !== null && prevValue !== undefined) {
+            if (value > prevValue) {
+                colorClass = 'text-green-400'; // Green if increasing
+            } else if (value < prevValue) {
+                colorClass = 'text-red-400'; // Red if decreasing
+            }
+        }
+    } 
+    else if (name.includes('gross margin')) {
         colorClass = value > 0.37 ? 'text-green-400' : 'text-red-400';
     } else if (name.includes('net margin')) {
         colorClass = value > 0.2 ? 'text-green-400' : 'text-red-400';
@@ -34,14 +46,13 @@ const getMetricStyles = (metricName: string, value: number): string => {
         else colorClass = 'text-red-400';
     }
     
-    return `p-3 border-b border-gray-600 ${colorClass}`;
+    return `p-3 border-b border-gray-600 text-left ${colorClass}`;
 };
 
 export default function KeyMetricsDisplay({ metrics, periods }: { metrics: ComprehensiveData['key_metrics'], periods: string[] }) {
     const metricItems = Object.entries(metrics);
     if (metricItems.length === 0) return <p className="text-gray-400 mt-4">No key metrics available.</p>;
 
-    // Define the desired order of metrics for logical grouping
     const metricOrder = [
         "Net Income",
         "Retained Earnings",
@@ -79,11 +90,17 @@ export default function KeyMetricsDisplay({ metrics, periods }: { metrics: Compr
                             <td className="p-3 border-b border-gray-600 text-gray-300 font-medium">
                                 {metricName}
                             </td>
-                            {periods.map((period) => (
-                                <td key={period} className={getMetricStyles(metricName, periodValues[period] ?? 0)} style={{ textAlign: 'left' }}>
-                                    {periodValues[period] !== undefined ? formatMetricValue(metricName, periodValues[period]) : '—'}
-                                </td>
-                            ))}
+                            {periods.map((period, index) => {
+                                const currentValue = periodValues[period];
+                                const prevPeriod = periods[index + 1];
+                                const prevValue = prevPeriod ? periodValues[prevPeriod] : null;
+
+                                return (
+                                    <td key={period} className={getMetricStyles(metricName, currentValue ?? null, prevValue ?? null)}>
+                                        {currentValue !== undefined && currentValue !== null ? formatMetricValue(metricName, currentValue) : '—'}
+                                    </td>
+                                );
+                            })}
                         </tr>
                     ))}
                 </tbody>
