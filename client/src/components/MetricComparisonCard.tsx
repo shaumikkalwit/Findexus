@@ -15,21 +15,41 @@ const formatMetricValue = (metricName: string, value: number): string => {
     return value.toFixed(2);
 };
 
-const getMetricStyles = (metricName: string, value: number | null): string => {
-    const name = metricName.toLowerCase();
-    let colorClass = 'text-gray-300';
-    // Corrected this line to use text-left for alignment consistency
-    if (value === null || value === undefined) return `p-3 text-left ${colorClass}`;
-
-    if (name.includes('gross margin')) colorClass = value > 0.4 ? 'text-green-400' : 'text-red-400';
-    else if (name.includes('net margin')) colorClass = value > 0.2 ? 'text-green-400' : 'text-red-400';
-    else if (name.includes('years to pay off debt')) colorClass = value < 4 ? 'text-green-400' : 'text-red-400';
-    else if (name.includes('capex to net income')) {
-        if (value < 0.25) colorClass = 'text-green-400';
-        else if (value <= 0.5) colorClass = 'text-yellow-400';
-        else colorClass = 'text-red-400';
+// Determines cell style based on performance rank among all companies for a given period
+const getComparisonMetricStyles = (
+    metricName: string,
+    value: number | null,
+    rank: number,      // 0 is best, 1 is second best, etc
+    totalRanks: number, // The number of companies being ranked
+    worstRank: number   // The rank of the worst-performing company
+): string => {
+    const baseStyle = 'p-3 text-left';
+    // Default style for null values or when there's nothing to compare
+    if (value === null || value === undefined || totalRanks <= 1) {
+        return `${baseStyle} text-gray-300`;
     }
-    return `p-3 text-left ${colorClass}`;
+
+    // Apply colors based on rank. Rank 0 is always the best
+    if (rank === 0) { // Best performer
+        return `${baseStyle} text-green-400 font-semibold`;
+    }
+    // For the worst performer, use a strong red. This applies in all cases (2, 3, 4+ companies)
+    if (rank === worstRank) { // Worst performer
+        return `${baseStyle} text-red-500`; // A strong, readable red
+    }
+    // Only apply second-tier colors if there are enough companies to justify it (4+)
+    if (totalRanks >= 4) {
+        if (rank === 1) { // Second best
+            return `${baseStyle} text-green-600`; // Keeping this a darker green to contrast with the best
+        }
+        // Check for second-to-last rank, ensuring it's not the same as the worst rank (handles ties)
+        if (rank === worstRank - 1) { // Second worst
+            return `${baseStyle} text-red-400`; // A lighter red for the second-to-last performer
+        }
+    }
+
+    // Default style for all middle-tier values
+    return `${baseStyle} text-gray-300`;
 };
 
 
@@ -61,27 +81,66 @@ export default function MetricComparisonCard({ metricName, periods, data, onRemo
                                     <th className="text-left font-semibold text-gray-300 p-2 w-1/4">Period</th>
                                     {data.map(company => (
                                         <th key={company.ticker} className="text-left font-semibold text-gray-300 p-2">
-                                            <div className="flex items-center justify-between">
+                                            <div className="inline-flex items-center group">
                                                 <span>{company.ticker}</span>
-                                                <button onClick={() => onRemove(company.ticker)} className="ml-2 text-gray-500 hover:text-red-400">&times;</button>
+                                                <button
+                                                    onClick={() => onRemove(company.ticker)}
+                                                    className="ml-1.5 text-gray-500 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity text-lg leading-none"
+                                                    aria-label={`Remove ${company.ticker}`}
+                                                >
+                                                    &times;
+                                                </button>
                                             </div>
                                         </th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
-                                {periods.map(period => (
-                                    <tr key={period} className="border-t border-gray-700">
-                                        <td className="p-2 font-medium">{period}</td>
-                                        {data.map(company => (
-                                            <td key={company.ticker} className={getMetricStyles(metricName, company.metrics[metricName]?.[period])}>
-                                                {company.metrics[metricName]?.[period] !== null && company.metrics[metricName]?.[period] !== undefined
-                                                    ? formatMetricValue(metricName, company.metrics[metricName][period])
-                                                    : '—'}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
+                                {periods.map(period => {
+                                    const rankedData = data
+                                        .map(company => ({
+                                            ticker: company.ticker,
+                                            value: company.metrics[metricName]?.[period]
+                                        }))
+                                        .filter(item => item.value !== null && item.value !== undefined);
+
+                                    const name = metricName.toLowerCase();
+                                    const lowerIsBetter = ['years to pay off debt', 'capex to net income'].some(m => name.includes(m));
+                                    
+                                    rankedData.sort((a, b) => lowerIsBetter ? a.value! - b.value! : b.value! - a.value!);
+
+                                    const rankMap = new Map<string, number>();
+                                    let lastValue = NaN;
+                                    let lastRank = -1;
+                                    rankedData.forEach((item, index) => {
+                                        if (item.value !== lastValue) {
+                                            lastRank = index;
+                                        }
+                                        rankMap.set(item.ticker, lastRank);
+                                        lastValue = item.value!;
+                                    });
+                                    
+                                    const totalRanked = rankedData.length;
+                                    const worstRank = totalRanked > 0 ? rankMap.get(rankedData[totalRanked - 1].ticker) : -1;
+
+                                    return (
+                                        <tr key={period} className="border-t border-gray-700">
+                                            <td className="p-2 font-medium">{period}</td>
+                                            {data.map(company => {
+                                                const currentValue = company.metrics[metricName]?.[period];
+                                                const rank = rankMap.get(company.ticker);
+                                                
+                                                return (
+                                                    <td key={company.ticker} className={getComparisonMetricStyles(metricName, currentValue, rank ?? -1, totalRanked, worstRank ?? -1)}>
+                                                        {currentValue !== null && currentValue !== undefined
+                                                            ? formatMetricValue(metricName, currentValue)
+                                                            : '—'}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

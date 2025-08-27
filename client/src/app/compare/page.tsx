@@ -56,7 +56,7 @@ function ComparePageContent() {
     const updateTickers = (newTickers: string[]) => {
         setTickers(newTickers);
         const newQuery = newTickers.join(',');
-        // We use router.replace to avoid polluting the browser history
+        // use router.replace to avoid polluting the browser history
         router.replace(`/compare?tickers=${newQuery}`);
     }
 
