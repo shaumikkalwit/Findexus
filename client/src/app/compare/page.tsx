@@ -6,42 +6,68 @@ import Link from 'next/link';
 import AddCompanyModal from '@/components/AddCompanyModal';
 import ComparisonTable from '@/components/ComparisonTable';
 import SkeletonTable from '@/components/SkeletonTable';
+import { ComprehensiveData } from '@/lib/types';
 
-// A wrapper component is needed to use useSearchParams within a Client Component
+// A helper type for the data structure we'll store in state
+type CompanyComparisonData = {
+    ticker: string;
+    name: string;
+    metrics: ComprehensiveData['key_metrics'];
+};
+
 function ComparePageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     
-    // Get the initial list of tickers from the URL when the component first loads
+    // This function is now only used for the initial setup
     const getTickersFromURL = () => searchParams.get('tickers')?.split(',') || [];
 
+    // This state tracks the tickers in the URL for updating it
     const [tickers, setTickers] = useState<string[]>(getTickersFromURL);
-    // Store the very first ticker from the URL and never change it
     const [initialTicker] = useState<string>(getTickersFromURL()[0] || '');
 
-    const [comparisonData, setComparisonData] = useState<any | null>(null);
+    // This state will hold the actual financial data for the companies
+    const [comparisonData, setComparisonData] = useState<CompanyComparisonData[]>([]);
+    const [periods, setPeriods] = useState<string[]>([]);
+    
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [years, setYears] = useState<number>(5);
 
-    const fetchComparisonData = async (tickersToFetch: string[], numYears: number) => {
+    const fetchInitialData = async (tickersToFetch: string[], numYears: number) => {
         if (tickersToFetch.length === 0) {
-            setComparisonData(null);
             setIsLoading(false);
             return;
         }
         setIsLoading(true);
         setError(null);
+        
         try {
-            const res = await fetch(`http://127.0.0.1:8000/financials/compare?periods=${numYears}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(tickersToFetch)
+            // Fetch all companies' comprehensive data concurrently
+            const promises = tickersToFetch.map(ticker =>
+                fetch(`http://127.0.0.1:8000/financial/${ticker}/comprehensive?periods=${numYears}`)
+                    .then(res => {
+                        if (!res.ok) throw new Error(`Failed to fetch data for ${ticker}`);
+                        return res.json();
+                    })
+            );
+
+            const results: ComprehensiveData[] = await Promise.all(promises);
+            
+            const allPeriods = new Set<string>();
+            const formattedData: CompanyComparisonData[] = results.map(data => {
+                data.periods.forEach(p => allPeriods.add(p));
+                return {
+                    ticker: data.company_info.ticker,
+                    name: data.company_info.name,
+                    metrics: data.key_metrics,
+                };
             });
-            if (!res.ok) throw new Error((await res.json()).detail);
-            const data = await res.json();
-            setComparisonData(data);
+
+            setPeriods(Array.from(allPeriods).sort().reverse());
+            setComparisonData(formattedData);
+
         } catch (e: any) {
             setError(e.message);
         } finally {
@@ -49,30 +75,69 @@ function ComparePageContent() {
         }
     };
 
+    // This effect runs only when the component first mounts or if the years change
+    // It no longer depends on the 'tickers' state
     useEffect(() => {
-        fetchComparisonData(tickers, years);
-    }, [tickers, years]);
+        const initialTickers = getTickersFromURL();
+        fetchInitialData(initialTickers, years);
+    }, [years]); // We keep 'years' so the user can refetch data for a different time period
 
-    const updateTickers = (newTickers: string[]) => {
-        setTickers(newTickers);
-        const newQuery = newTickers.join(',');
-        // use router.replace to avoid polluting the browser history
-        router.replace(`/compare?tickers=${newQuery}`);
+    const updateURL = (newTickers: string[]) => {
+        const uniqueTickers = [...new Set(newTickers.map(t => t.toUpperCase()))];
+        setTickers(uniqueTickers); // Keep this to track the current URL state
+        router.replace(`/compare?tickers=${uniqueTickers.join(',')}`);
     }
 
-    const handleAddCompany = (newTicker: string) => {
-        if (!tickers.includes(newTicker)) {
-            updateTickers([...tickers, newTicker]);
+    const handleAddCompany = async (newTicker: string) => {
+        const upperTicker = newTicker.toUpperCase();
+        if (comparisonData.some(c => c.ticker === upperTicker)) {
+            setIsModalOpen(false);
+            return; // Don't add if it already exists
         }
-        setIsModalOpen(false);
+
+        // Set a more specific loading state to avoid showing the full skeleton
+        const originalLoadingState = isLoading;
+        setIsLoading(true);
+        try {
+            const res = await fetch(`http://127.0.0.1:8000/financial/${upperTicker}/comprehensive?periods=${years}`);
+            if (!res.ok) throw new Error((await res.json()).detail);
+            const data: ComprehensiveData = await res.json();
+
+            // Add the new company data to the existing state
+            const newData: CompanyComparisonData = {
+                ticker: data.company_info.ticker,
+                name: data.company_info.name,
+                metrics: data.key_metrics,
+            };
+            
+            // Update periods if the new company has different ones
+            const newPeriods = new Set([...periods, ...data.periods]);
+            setPeriods(Array.from(newPeriods).sort().reverse());
+            
+            setComparisonData(prevData => [...prevData, newData]);
+            
+            // Update the URL to reflect the new state
+            updateURL([...tickers, upperTicker]);
+
+        } catch (e: any) {
+            setError(e.message);
+        } finally {
+            setIsLoading(originalLoadingState);
+            setIsModalOpen(false);
+        }
     };
 
     const handleRemoveCompany = (tickerToRemove: string) => {
+        // Remove from the data state instantly (no API call)
+        const newComparisonData = comparisonData.filter(c => c.ticker !== tickerToRemove);
+        setComparisonData(newComparisonData);
+
+        // Update the URL
         const newTickerList = tickers.filter(t => t !== tickerToRemove);
         if (newTickerList.length === 0) {
             router.push('/');
         } else {
-            updateTickers(newTickerList);
+            updateURL(newTickerList);
         }
     };
 
@@ -120,7 +185,7 @@ function ComparePageContent() {
                 <div className="mt-8">
                     {isLoading && <SkeletonTable />}
                     {error && <p className="text-center text-red-400 p-4">{error}</p>}
-                    {comparisonData && <ComparisonTable periods={comparisonData.periods} data={comparisonData.data} onRemove={handleRemoveCompany} />}
+                    {comparisonData.length > 0 && <ComparisonTable periods={periods} data={comparisonData} onRemove={handleRemoveCompany} />}
                 </div>
             </div>
         </main>
