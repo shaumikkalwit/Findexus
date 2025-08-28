@@ -7,6 +7,13 @@ from edgar import *
 from datetime import datetime
 import logging
 import asyncio
+import os
+from datetime import datetime, timedelta, timezone
+from supabase import create_client, Client
+from dotenv import load_dotenv
+
+# This line reads the SUPABASE_URL and SUPABASE_KEY from your .env file.
+load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -14,6 +21,17 @@ logger = logging.getLogger(__name__)
 set_identity("shaumik.kalwit@gmail.com")
 
 app = FastAPI(title="Financial Statements API", version="1.0.0")
+
+# Load Supabase credentials from environment variables for security.
+url: Optional[str] = os.environ.get("SUPABASE_URL")
+key: Optional[str] = os.environ.get("SUPABASE_KEY")
+
+if not url or not key:
+    logger.warning("Supabase URL or Key not found. Caching will be disabled.")
+    supabase: Optional[Client] = None
+else:
+    supabase: Client = create_client(url, key)
+    logger.info("Successfully connected to Supabase.")
 
 # Add this CORS middleware section
 origins = [
@@ -61,28 +79,28 @@ class ComparisonResponse(BaseModel):
     periods: List[str]
     data: List[CompanyMetrics] # A list where each item follows the CompanyMetrics structure
 
-# --- Existing Endpoints ---
 @lru_cache(maxsize=128)
 def get_company_financials_sync(ticker: str, periods: int):
     """
-    Synchronous, cached function to fetch all financial statements for a company
-    This is the single point of contact with the EDGAR API
+    Synchronous function to fetch all financial statements for a company.
+    This is now only called when the cache is missed.
     """
-    logger.info(f"Fetching fresh data for {ticker} from EDGAR API...")
+    logger.info(f"CACHE MISS: Fetching fresh data for {ticker} from EDGAR API...")
     try:
         company = Company(ticker)
         if not company.facts:
-            return None # Return None if company data is not found
+            return None
 
         income_stmt = company.income_statement(periods=periods, annual=True, concise_format=True)
         balance_sheet = company.balance_sheet(periods=periods, annual=True, concise_format=True)
         cash_flow = company.cash_flow(periods=periods, annual=True, concise_format=True)
         
+        # Convert statement objects to dictionaries for JSON serialization
         return {
             "company_info": {'name': company.name, 'ticker': ticker, 'shares_outstanding': company.shares_outstanding, 'public_float': company.public_float},
-            "income_statement": income_stmt,
-            "balance_sheet": balance_sheet,
-            "cash_flow": cash_flow
+            "income_statement": _convert_statement_to_dict(income_stmt),
+            "balance_sheet": _convert_statement_to_dict(balance_sheet),
+            "cash_flow": _convert_statement_to_dict(cash_flow)
         }
     except Exception as e:
         logger.error(f"Failed to fetch data for {ticker} from EDGAR: {e}")
@@ -90,15 +108,61 @@ def get_company_financials_sync(ticker: str, periods: int):
 
 async def get_company_financial_data(ticker: str, periods: int):
     """
-    Asynchronous wrapper that runs the synchronous, cached fetching function
-    in a separate thread to avoid blocking the server.
+    Main data fetching function with Supabase caching logic.
     """
+    ticker = ticker.upper()
+    
+    if supabase:
+        # 1. Check the database for a cached entry.
+        response = supabase.table('financial_data_cache').select('*').eq('ticker', ticker).execute()
+        
+        if response.data:
+            cached_data = response.data[0]
+            last_updated_str = cached_data['last_updated']
+            # Ensure the timestamp is timezone-aware for correct comparison
+            last_updated = datetime.fromisoformat(last_updated_str).astimezone(timezone.utc)
+            
+            # 2. Check if the cached data is less than 30 days old.
+            if datetime.now(timezone.utc) - last_updated < timedelta(days=30):
+                logger.info(f"CACHE HIT: Returning cached data for {ticker}.")
+                return cached_data['financial_data']
+
+    # 3. If no cache or data is stale, fetch fresh data.
     loop = asyncio.get_event_loop()
-    # Run the synchronous, blocking function in a thread pool.
-    data = await loop.run_in_executor(None, get_company_financials_sync, ticker.upper(), periods)
-    if not data:
+    fresh_data = await loop.run_in_executor(None, get_company_financials_sync, ticker, periods)
+    
+    if not fresh_data:
         raise HTTPException(status_code=404, detail=f"No financial data available for {ticker}")
-    return data
+
+    if supabase:
+        # 4. Save the fresh data to the Supabase cache.
+        # 'upsert' will insert a new row or update an existing one.
+        supabase.table('financial_data_cache').upsert({
+            'ticker': ticker,
+            'financial_data': fresh_data,
+            'last_updated': datetime.now().isoformat()
+        }).execute()
+        logger.info(f"CACHE WRITE: Saved fresh data for {ticker} to Supabase.")
+
+    return fresh_data
+
+# --- Helper to reconstruct statement objects from cached data ---
+def _reconstruct_statement(data: Dict[str, Any], periods: List[str]):
+    """Helper to reconstruct a statement-like object from cached dictionary data."""
+    if not data: return None
+    from types import SimpleNamespace
+    stmt = SimpleNamespace(periods=periods)
+    items = []
+    for concept, item_data in data.items():
+        if 'values' in item_data and isinstance(item_data['values'], dict):
+            values = {p: v['raw_value'] for p, v in item_data['values'].items() if 'raw_value' in v}
+            item = SimpleNamespace(label=item_data['label'], concept=concept, values=values)
+            items.append(item)
+    
+    def iter_with_values():
+        yield from items
+    stmt.iter_with_values = iter_with_values
+    return stmt
 
 # All endpoints use the central get_company_financial_data function.
 @app.get("/financial/{ticker}/income", response_model=FinancialResponse)
@@ -106,17 +170,17 @@ async def get_income_statement(
     ticker: str,
     years: int = Query(20, description="Number of periods", ge=5, le=20),
 ):
-    """Get income statement data for multiple periods"""
     company_data = await get_company_financial_data(ticker, years)
-    stmt = company_data["income_statement"]
-    if not stmt:
+    stmt_dict = company_data.get("income_statement", {})
+    if not stmt_dict:
         raise HTTPException(status_code=404, detail=f"No income statement data for {ticker}")
     
+    periods = list(next(iter(stmt_dict.values()))['values'].keys())
     return FinancialResponse(
         company_info=company_data['company_info'],
-        periods=stmt.periods,
-        data=_convert_statement_to_dict(stmt),
-        metadata={'period_type': True, 'concise_format': True}
+        periods=periods,
+        data=stmt_dict,
+        metadata={'period_type': 'annual', 'concise_format': True}
     )
 
 @app.get("/financial/{ticker}/balance", response_model=FinancialResponse)  
@@ -124,17 +188,17 @@ async def get_balance_sheet(
     ticker: str,
     years: int = Query(20, description="Number of periods", ge=5, le=20),
 ):
-    """Get balance sheet data for multiple periods"""
     company_data = await get_company_financial_data(ticker, years)
-    stmt = company_data["balance_sheet"]
-    if not stmt:
+    stmt_dict = company_data.get("balance_sheet", {})
+    if not stmt_dict:
         raise HTTPException(status_code=404, detail=f"No balance sheet data for {ticker}")
         
+    periods = list(next(iter(stmt_dict.values()))['values'].keys())
     return FinancialResponse(
         company_info=company_data['company_info'],
-        periods=stmt.periods,
-        data=_convert_statement_to_dict(stmt),
-        metadata={'period_type': True, 'concise_format': True}
+        periods=periods,
+        data=stmt_dict,
+        metadata={'period_type': 'annual', 'concise_format': True}
     )
 
 @app.get("/financial/{ticker}/cashflow", response_model=FinancialResponse)
@@ -142,17 +206,17 @@ async def get_cash_flow(
     ticker: str,
     years: int = Query(20, description="Number of years", ge=5, le=20),
 ):
-    """Get cash flow statement data for multiple years"""
     company_data = await get_company_financial_data(ticker, years)
-    stmt = company_data["cash_flow"]
-    if not stmt:
+    stmt_dict = company_data.get("cash_flow", {})
+    if not stmt_dict:
         raise HTTPException(status_code=404, detail=f"No cash flow data for {ticker}")
         
+    periods = list(next(iter(stmt_dict.values()))['values'].keys())
     return FinancialResponse(
         company_info=company_data['company_info'],
-        periods=stmt.periods,
-        data=_convert_statement_to_dict(stmt),
-        metadata={'period_type': True, 'concise_format': True}
+        periods=periods,
+        data=stmt_dict,
+        metadata={'period_type': 'annual', 'concise_format': True}
     )
 
 @app.get("/financial/{ticker}/comprehensive", response_model=ComprehensiveFinancialResponse)
@@ -160,24 +224,32 @@ async def get_comprehensive_financials(
     ticker: str,
     periods: int = Query(10, description="Number of periods", ge=1, le=20),
 ):
-    """Get comprehensive financial data including all statements and key metrics"""
     company_data = await get_company_financial_data(ticker, periods)
     
-    income_stmt = company_data["income_statement"]
-    balance_sheet = company_data["balance_sheet"]
-    cash_flow = company_data["cash_flow"]
+    income_stmt_dict = company_data.get("income_statement", {})
+    balance_sheet_dict = company_data.get("balance_sheet", {})
+    cash_flow_dict = company_data.get("cash_flow", {})
 
-    if not income_stmt or not income_stmt.periods:
+    if not income_stmt_dict:
         raise HTTPException(status_code=404, detail=f"No financial statement data available for {ticker}")
+
+    try:
+        available_periods = list(next(iter(income_stmt_dict.values()))['values'].keys())
+    except (StopIteration, KeyError):
+        available_periods = []
+
+    income_stmt = _reconstruct_statement(income_stmt_dict, available_periods)
+    balance_sheet = _reconstruct_statement(balance_sheet_dict, available_periods)
+    cash_flow = _reconstruct_statement(cash_flow_dict, available_periods)
 
     key_metrics = _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow)
 
     return ComprehensiveFinancialResponse(
         company_info=company_data['company_info'],
-        periods=income_stmt.periods,
-        income_statement=_convert_statement_to_dict(income_stmt),
-        balance_sheet=_convert_statement_to_dict(balance_sheet),
-        cash_flow=_convert_statement_to_dict(cash_flow),
+        periods=available_periods,
+        income_statement=income_stmt_dict,
+        balance_sheet=balance_sheet_dict,
+        cash_flow=cash_flow_dict,
         key_metrics=key_metrics,
         metadata={'period_type': 'annual', 'concise_format': True}
     )
@@ -188,35 +260,39 @@ async def compare_companies_ratios(
     periods: int = Query(10, description="Number of periods", ge=1, le=20)
 ):
     """Compare financial ratios across multiple companies."""
-    comparison_data = []
-    all_periods = set()
-    
-    # Use asyncio.gather to fetch data for all companies concurrently.
     tasks = [get_company_financial_data(ticker, periods) for ticker in tickers]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
+    comparison_data = []
+    all_periods = set()
+
     for result in results:
         if isinstance(result, Exception):
-            # Log the error but continue, so one failed ticker doesn't break the whole comparison.
             logger.error(f"Failed to fetch data for a company during comparison: {result}")
             continue
         
         company_data = result
-        income_stmt = company_data["income_statement"]
-        balance_sheet = company_data["balance_sheet"]
-        cash_flow = company_data["cash_flow"]
+        income_stmt_dict = company_data.get("income_statement", {})
+        if not income_stmt_dict: continue
 
-        if not income_stmt: continue
-        
-        for p in income_stmt.periods: all_periods.add(p)
+        try:
+            available_periods = list(next(iter(income_stmt_dict.values()))['values'].keys())
+            for p in available_periods: all_periods.add(p)
 
-        metrics = _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow)
-        
-        comparison_data.append(CompanyMetrics(
-            ticker=company_data['company_info']['ticker'],
-            name=company_data['company_info']['name'],
-            metrics=metrics
-        ))
+            income_stmt = _reconstruct_statement(income_stmt_dict, available_periods)
+            balance_sheet = _reconstruct_statement(company_data.get("balance_sheet", {}), available_periods)
+            cash_flow = _reconstruct_statement(company_data.get("cash_flow", {}), available_periods)
+
+            metrics = _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow)
+            
+            comparison_data.append(CompanyMetrics(
+                ticker=company_data['company_info']['ticker'],
+                name=company_data['company_info']['name'],
+                metrics=metrics
+            ))
+        except (StopIteration, KeyError):
+            logger.error(f"Could not process periods for ticker {company_data['company_info']['ticker']}")
+            continue
 
     if not comparison_data:
         raise HTTPException(status_code=404, detail="Could not retrieve data for any of the provided tickers.")
@@ -251,6 +327,27 @@ def _convert_statement_to_dict(stmt):
                 item_data['values'][period] = {'raw_value': value, 'display_value': item.get_display_value(period)}
         data[item.concept] = item_data
     return data
+
+def _reconstruct_statement(data: Dict[str, Any], periods: List[str]):
+    """Helper to reconstruct a statement-like object from cached dictionary data."""
+    if not data: return None
+    # This is a simplified reconstruction for the purpose of ratio calculation.
+    # We create a mock object that has the necessary attributes.
+    from types import SimpleNamespace
+    stmt = SimpleNamespace(periods=periods)
+    items = []
+    for concept, item_data in data.items():
+        # Ensure 'values' key exists and is a dictionary before proceeding
+        if 'values' in item_data and isinstance(item_data['values'], dict):
+            values = {p: v['raw_value'] for p, v in item_data['values'].items() if 'raw_value' in v}
+            item = SimpleNamespace(label=item_data['label'], concept=concept, values=values)
+            items.append(item)
+    
+    # Add a simple iterator to mimic the original statement object's behavior
+    def iter_with_values():
+        yield from items
+    stmt.iter_with_values = iter_with_values
+    return stmt
 
 def _find_item_contains(statement, keyword):
     if not statement: return None
