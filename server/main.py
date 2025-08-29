@@ -2,45 +2,57 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
-import pandas as pd
 from edgar import *
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import logging
+import os
+import asyncio
+from functools import lru_cache
+from supabase import create_client, Client
+from dotenv import load_dotenv
+import pickle
 
-# Set up logging
+# --- Load Environment Variables ---
+load_dotenv()
+
+# --- Basic Setup ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 set_identity("shaumik.kalwit@gmail.com")
 
 app = FastAPI(title="Financial Statements API", version="1.0.0")
 
-# Add this CORS middleware section
+# --- Supabase Setup ---
+url: Optional[str] = os.environ.get("SUPABASE_URL")
+key: Optional[str] = os.environ.get("SUPABASE_KEY")
+
+if not url or not key:
+    logger.warning("Supabase URL or Key not found. Caching will be disabled.")
+    supabase: Optional[Client] = None
+else:
+    supabase: Client = create_client(url, key)
+    logger.info("Successfully connected to Supabase.")
+
+# --- CORS Middleware ---
 origins = [
     "http://localhost:3000",
 ]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins, # Allows info from origins listed
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"], # Allows all methods (GET, POST, etc.)
-    allow_headers=["*"], # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-
-# --- Define JSON responses my APIs send out ---
-# 1. Ensure that returned data from endpoint matches the structure
-# 2. Convert Python data from dictionaries/lists to a JSON format
-
+# --- Pydantic Response Models ---
 class FinancialResponse(BaseModel):
-    """Defines the response structure for an endpoint returning a single financial statement"""
     company_info: Dict[str, Any]
     periods: List[str]
     data: Dict[str, Any]
     metadata: Dict[str, Any]
- 
+
 class ComprehensiveFinancialResponse(BaseModel):
-    """Defines the response for the comprehensive endpoint, including all statements and metrics"""
     company_info: Dict[str, Any]
     periods: List[str]
     income_statement: Dict[str, Any]
@@ -50,169 +62,17 @@ class ComprehensiveFinancialResponse(BaseModel):
     metadata: Dict[str, Any]
     
 class CompanyMetrics(BaseModel):
-    """A nested model defining the structure for one company's data within a comparison"""
     ticker: str
     name: str
     metrics: Dict[str, Dict[str, float | None]]
     
 class ComparisonResponse(BaseModel):
-    """Defines the response structure for the company comparison endpoint"""
     periods: List[str]
-    data: List[CompanyMetrics] # A list where each item follows the CompanyMetrics structure
-
-# --- Existing Endpoints ---
-@app.get("/financial/{ticker}/income", response_model=FinancialResponse)
-async def get_income_statement(
-    ticker: str,
-    years: int = Query(20, description="Number of periods", ge=5, le=20),
-):
-    """
-    Endpoint to retrieve the income statement for a given company ticker
-    - ticker: The company's stock ticker
-    - years: A query parameter for the number of periods to fetch, with validation
-    """
-    try:
-        # Initialize a Company object from the edgar library
-        company = Company(ticker.upper())
-        if not company.facts:
-            raise HTTPException(status_code=404, detail=f"No financial data available for {ticker}")
-        
-        # Fetch the income statement
-        stmt = company.income_statement(periods=years, annual=True, concise_format=True)
-        if not stmt:
-            raise HTTPException(status_code=404, detail=f"No income statement data for {ticker}")
-        
-        # Construct the response dictionary.
-        response_data = {
-            'company_info': {'name': company.name, 'ticker': ticker.upper(), 'shares_outstanding': company.shares_outstanding, 'public_float': company.public_float},
-            'periods': stmt.periods,
-            'data': _convert_statement_to_dict(stmt),
-            'metadata': {'period_type': True, 'concise_format': True, 'total_items': len(list(stmt.iter_with_values()))}
-        }
-        
-        # Validate and return the response using the FinancialResponse model
-        return FinancialResponse(**response_data)
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/financial/{ticker}/balance", response_model=FinancialResponse)  
-async def get_balance_sheet(
-    ticker: str,
-    years: int = Query(20, description="Number of periods", ge=5, le=20),
-):
-    """Endpoint to retrieve the balance sheet for a given company ticker"""
-    try:
-        # Initialize a Company object from the edgar library
-        company = Company(ticker.upper())
-        if not company.facts:
-            raise HTTPException(status_code=404, detail=f"No financial data available for {ticker}")
-        
-        # Fetch the balance sheet
-        stmt = company.balance_sheet(periods=years, annual=True, concise_format=True)
-        if not stmt:
-            raise HTTPException(status_code=404, detail=f"No balance sheet data for {ticker}")
-        
-        # Construct the response dictionary
-        response_data = {
-            'company_info': {'name': company.name, 'ticker': ticker.upper(), 'shares_outstanding': company.shares_outstanding, 'public_float': company.public_float},
-            'periods': stmt.periods,
-            'data': _convert_statement_to_dict(stmt),
-            'metadata': {'period_type': True, 'concise_format': True, 'total_items': len(list(stmt.iter_with_values()))}
-        }
-        
-        # Validate and return the response using the FinancialResponse model
-        return FinancialResponse(**response_data)
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/financial/{ticker}/cashflow", response_model=FinancialResponse)
-async def get_cash_flow(
-    ticker: str,
-    years: int = Query(20, description="Number of years", ge=5, le=20),
-):
-    """Endpoint to retrieve the cash flow statement for a given company ticker"""
-    try:
-        # Initialize a Company object from the edgar library
-        company = Company(ticker.upper())
-        if not company.facts:
-            raise HTTPException(status_code=404, detail=f"No financial data available for {ticker}")
-        
-        # Fetch the cashflow statement
-        stmt = company.cash_flow(periods=years, annual=True, concise_format=True)
-        if not stmt:
-            raise HTTPException(status_code=404, detail=f"No cash flow data for {ticker}")
-        
-        # Construct the response dictionary
-        response_data = {
-            'company_info': {'name': company.name, 'ticker': ticker.upper(), 'shares_outstanding': company.shares_outstanding, 'public_float': company.public_float},
-            'periods': stmt.periods,
-            'data': _convert_statement_to_dict(stmt),
-            'metadata': {'period_type': True, 'concise_format': True, 'total_items': len(list(stmt.iter_with_values()))}
-        }
-        
-        # Validate and return the response using the FinancialResponse model
-        return FinancialResponse(**response_data)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/financial/{ticker}/comprehensive", response_model=ComprehensiveFinancialResponse)
-async def get_comprehensive_financials(
-    ticker: str,
-    periods: int = Query(5, description="Number of periods", ge=1, le=10),
-    annual: bool = Query(True, description="Annual (True) or Quarterly (False)"),
-    concise_format: bool = Query(True, description="Use concise formatting"),
-    include_ratios: bool = Query(True, description="Calculate financial ratios")
-):
-    """
-    Endpoint to get a comprehensive financial overview, including all three
-    statements and calculated key metrics
-    """
-    try:
-        # Initialize a Company object from the edgar library
-        company = Company(ticker.upper())
-
-        if not company.facts:
-            raise HTTPException(status_code=404, detail=f"No financial data available for {ticker}")
-
-        # Get all three statements
-        income_stmt = company.income_statement(periods=periods, annual=annual, concise_format=concise_format)
-        balance_sheet = company.balance_sheet(periods=periods, annual=annual, concise_format=concise_format)
-        cash_flow = company.cash_flow(periods=periods, annual=annual, concise_format=concise_format)
-
-        available_periods = income_stmt.periods if income_stmt and income_stmt.periods else []
-
-        if not available_periods:
-            raise HTTPException(status_code=404, detail=f"No financial statement data available for {ticker}")
-
-        # Calculate financial ratios if the necessary statements are available
-        key_metrics = {}
-        if include_ratios and income_stmt and balance_sheet:
-            key_metrics = _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow)
-
-        response_data = {
-            'company_info': {'name': company.name, 'ticker': ticker.upper(), 'shares_outstanding': company.shares_outstanding, 'public_float': company.public_float},
-            'periods': available_periods,
-            'income_statement': _convert_statement_to_dict(income_stmt) if income_stmt else {},
-            'balance_sheet': _convert_statement_to_dict(balance_sheet) if balance_sheet else {},
-            'cash_flow': _convert_statement_to_dict(cash_flow) if cash_flow else {},
-            'key_metrics': key_metrics,
-            'metadata': {
-                'period_type': 'annual' if annual else 'quarterly',
-                'concise_format': concise_format,
-                'statements_available': {'income_statement': bool(income_stmt), 'balance_sheet': bool(balance_sheet), 'cash_flow': bool(cash_flow)}
-            }
-        }
-        return ComprehensiveFinancialResponse(**response_data)
-    except Exception as e:
-        logger.error(f"Error in comprehensive endpoint for {ticker}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    data: List[CompanyMetrics]
 
 # --- Helper Functions ---
 
 def _convert_statement_to_dict(stmt):
-    """Convert statement to API-friendly dictionary format"""
     if not stmt: return {}
     data = {}
     for item in stmt.iter_with_values():
@@ -243,6 +103,7 @@ def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
         "Net Margin": {}, "Return on Equity (ROE)": {}, "Years to Pay Off Debt": {},
         "Capex to Net Income": {}
     }
+    if not income_stmt or not hasattr(income_stmt, 'periods'): return {}
     try:
         revenue_item = _find_item_contains(income_stmt, 'Revenue')
         gross_profit_item = _find_item_contains(income_stmt, 'Gross Profit')
@@ -252,7 +113,7 @@ def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
         retained_earnings_item = _find_item_contains(balance_sheet, 'Retained Earnings')
         capex_item = _find_item_contains(cash_flow, 'property, plant, and equipment')
 
-        for i, period in enumerate(income_stmt.periods):
+        for period in income_stmt.periods:
             revenue = revenue_item.values.get(period) if revenue_item else None
             gross_profit = gross_profit_item.values.get(period) if gross_profit_item else None
             net_income = net_income_item.values.get(period) if net_income_item else None
@@ -268,69 +129,199 @@ def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
             if net_income and total_equity and total_equity != 0: ratios["Return on Equity (ROE)"][period] = net_income / total_equity
             if net_income and net_income != 0: ratios["Years to Pay Off Debt"][period] = long_term_debt / net_income
             if net_income and capex and net_income != 0: ratios["Capex to Net Income"][period] = abs(capex) / net_income
-
-            # Calculate YoY growth for each metric
-            if i < len(income_stmt.periods) - 1:
-                prev_period = income_stmt.periods[i+1]
-                for metric, values in ratios.items():
-                    current_value = values.get(period)
-                    prev_value = values.get(prev_period)
-                    if current_value is not None and prev_value is not None and prev_value != 0:
-                        growth = (current_value - prev_value) / abs(prev_value)
-                        if f"{metric} YoY Growth" not in ratios:
-                            ratios[f"{metric} YoY Growth"] = {}
-                        ratios[f"{metric} YoY Growth"][period] = growth
-
     except Exception as e:
         logger.error(f"Error calculating ratios: {e}", exc_info=True)
     return {k: v for k, v in ratios.items() if v}
 
+# --- Core Data Fetching and Caching Logic ---
+
+@lru_cache(maxsize=128)
+def get_company_financials_sync(ticker: str):
+    """
+    Synchronous function to fetch all available financial statements (up to 20 years).
+    This is the only function that communicates with the EDGAR API.
+    """
+    logger.info(f"CACHE MISS: Fetching fresh data for {ticker} from EDGAR API...")
+    try:
+        company = Company(ticker)
+        if not company.facts: return None
+
+        income_stmt = company.income_statement(periods=20, annual=True, concise_format=True)
+        balance_sheet = company.balance_sheet(periods=20, annual=True, concise_format=True)
+        cash_flow = company.cash_flow(periods=20, annual=True, concise_format=True)
+        
+        if not income_stmt or not income_stmt.periods: return None
+
+        # Return the raw objects along with company info
+        return {
+            "company_info": {'name': company.name, 'ticker': ticker, 'shares_outstanding': company.shares_outstanding, 'public_float': company.public_float},
+            "income_statement": income_stmt,
+            "balance_sheet": balance_sheet,
+            "cash_flow": cash_flow
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch data for {ticker} from EDGAR: {e}")
+        return None
+
+async def get_company_financial_data(ticker: str):
+    """
+    Main data fetching function with Supabase caching.
+    It now caches the pickled raw objects.
+    """
+    ticker = ticker.upper()
+    
+    if supabase:
+        response = supabase.table('financial_data_cache').select('financial_data, last_updated').eq('ticker', ticker).execute()
+        if response.data:
+            cached_data = response.data[0]
+            last_updated = datetime.fromisoformat(cached_data['last_updated']).astimezone(timezone.utc)
+            if datetime.now(timezone.utc) - last_updated < timedelta(days=30):
+                logger.info(f"CACHE HIT: Returning cached data for {ticker}.")
+                # Unpickle the data from the database
+                return pickle.loads(bytes.fromhex(cached_data['financial_data']))
+
+    loop = asyncio.get_event_loop()
+    full_data = await loop.run_in_executor(None, get_company_financials_sync, ticker)
+    
+    if not full_data:
+        raise HTTPException(status_code=404, detail=f"No financial data available for {ticker}")
+
+    if supabase:
+        # Pickle the raw objects and store them as a hex string
+        pickled_data = pickle.dumps(full_data).hex()
+        supabase.table('financial_data_cache').upsert({
+            'ticker': ticker,
+            'financial_data': pickled_data,
+            'last_updated': datetime.now().isoformat()
+        }).execute()
+        logger.info(f"CACHE WRITE: Saved fresh data for {ticker} to Supabase.")
+
+    return full_data
+
+# --- API Endpoints ---
+
+@app.get("/financial/{ticker}/income", response_model=FinancialResponse)
+async def get_income_statement(
+    ticker: str,
+    years: int = Query(20, description="Number of periods", ge=1, le=20),
+):
+    company_data = await get_company_financial_data(ticker)
+    stmt = company_data['income_statement']
+    stmt.periods = sorted(stmt.periods, reverse=True)[:years]
+    
+    return FinancialResponse(
+        company_info=company_data['company_info'],
+        periods=stmt.periods,
+        data=_convert_statement_to_dict(stmt),
+        metadata={'period_type': 'annual', 'concise_format': True}
+    )
+
+@app.get("/financial/{ticker}/balance", response_model=FinancialResponse)  
+async def get_balance_sheet(
+    ticker: str,
+    years: int = Query(20, description="Number of periods", ge=1, le=20),
+):
+    company_data = await get_company_financial_data(ticker)
+    stmt = company_data['balance_sheet']
+    stmt.periods = sorted(stmt.periods, reverse=True)[:years]
+    
+    return FinancialResponse(
+        company_info=company_data['company_info'],
+        periods=stmt.periods,
+        data=_convert_statement_to_dict(stmt),
+        metadata={'period_type': 'annual', 'concise_format': True}
+    )
+
+@app.get("/financial/{ticker}/cashflow", response_model=FinancialResponse)
+async def get_cash_flow(
+    ticker: str,
+    years: int = Query(20, description="Number of years", ge=1, le=20),
+):
+    company_data = await get_company_financial_data(ticker)
+    stmt = company_data['cash_flow']
+    stmt.periods = sorted(stmt.periods, reverse=True)[:years]
+    
+    return FinancialResponse(
+        company_info=company_data['company_info'],
+        periods=stmt.periods,
+        data=_convert_statement_to_dict(stmt),
+        metadata={'period_type': 'annual', 'concise_format': True}
+    )
+
+@app.get("/financial/{ticker}/comprehensive", response_model=ComprehensiveFinancialResponse)
+async def get_comprehensive_financials(
+    ticker: str,
+    periods: int = Query(10, description="Number of periods", ge=1, le=20),
+):
+    company_data = await get_company_financial_data(ticker)
+    
+    income_stmt = company_data['income_statement']
+    balance_sheet = company_data['balance_sheet']
+    cash_flow = company_data['cash_flow']
+    
+    # Trim the periods for this specific request
+    periods_to_keep = sorted(income_stmt.periods, reverse=True)[:periods]
+    income_stmt.periods = periods_to_keep
+    balance_sheet.periods = periods_to_keep
+    cash_flow.periods = periods_to_keep
+    
+    key_metrics = _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow)
+
+    return ComprehensiveFinancialResponse(
+        company_info=company_data['company_info'],
+        periods=periods_to_keep,
+        income_statement=_convert_statement_to_dict(income_stmt),
+        balance_sheet=_convert_statement_to_dict(balance_sheet),
+        cash_flow=_convert_statement_to_dict(cash_flow),
+        key_metrics=key_metrics,
+        metadata={'period_type': 'annual', 'concise_format': True}
+    )
+
 @app.post("/financials/compare", response_model=ComparisonResponse)
 async def compare_companies_ratios(
     tickers: List[str],
-    periods: int = Query(5, description="Number of periods", ge=1, le=10)
+    periods: int = Query(10, description="Number of periods", ge=1, le=20)
 ):
-    """
-    Endpoint to compare financial ratios across multiple companies.
-    Accepts a list of tickers in the request body.
-    """
+    tasks = [get_company_financial_data(ticker) for ticker in tickers]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
     comparison_data = []
     all_periods = set()
 
-    for ticker in tickers:
-        try:
-            company = Company(ticker.upper())
-            if not company.facts: continue
-
-            income_stmt = company.income_statement(periods=periods, annual=True, concise_format=True)
-            balance_sheet = company.balance_sheet(periods=periods, annual=True, concise_format=True)
-            cash_flow = company.cash_flow(periods=periods, annual=True, concise_format=True)
-
-            if not income_stmt: continue
-            
-            for p in income_stmt.periods: all_periods.add(p)
-
-            metrics = _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow)
-            
-            comparison_data.append(CompanyMetrics(
-                ticker=ticker.upper(),
-                name=company.name,
-                metrics=metrics
-            ))
-        except Exception as e:
-            logger.error(f"Could not process {ticker} for comparison: {e}")
+    for result in results:
+        if isinstance(result, Exception):
+            logger.error(f"Failed to fetch data for a company during comparison: {result}")
             continue
+        
+        company_data = result
+        
+        income_stmt = company_data['income_statement']
+        balance_sheet = company_data['balance_sheet']
+        cash_flow = company_data['cash_flow']
+        
+        periods_to_keep = sorted(income_stmt.periods, reverse=True)[:periods]
+        for p in periods_to_keep: all_periods.add(p)
+
+        income_stmt.periods = periods_to_keep
+        balance_sheet.periods = periods_to_keep
+        cash_flow.periods = periods_to_keep
+
+        metrics = _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow)
+        
+        comparison_data.append(CompanyMetrics(
+            ticker=company_data['company_info']['ticker'],
+            name=company_data['company_info']['name'],
+            metrics=metrics
+        ))
 
     if not comparison_data:
         raise HTTPException(status_code=404, detail="Could not retrieve data for any of the provided tickers.")
 
-    sorted_periods = sorted(list(all_periods), reverse=True)
-    
-    # Ensure all companies have all periods for all metrics, filling with None if missing
-    for company_data in comparison_data:
-        for metric in company_data.metrics:
-            for period in sorted_periods:
-                if period not in company_data.metrics[metric]:
-                    company_data.metrics[metric][period] = None
+    final_periods = sorted(list(all_periods), reverse=True)
 
-    return ComparisonResponse(periods=sorted_periods, data=comparison_data)
+    # Final trim of metrics to ensure consistency
+    for company_metrics in comparison_data:
+        for metric_name, metric_values in company_metrics.metrics.items():
+            company_metrics.metrics[metric_name] = {p: metric_values.get(p) for p in final_periods}
+
+    return ComparisonResponse(periods=final_periods, data=comparison_data)

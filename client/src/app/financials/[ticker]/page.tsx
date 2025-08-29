@@ -63,16 +63,12 @@ export default function FinancialsPage({ params }: { params: Promise<{ ticker: s
   };
   
   useEffect(() => {
-    fetchComprehensiveData(years);
-  }, [ticker]);
-
-  useEffect(() => {
     if (activeView === 'overview') {
         fetchComprehensiveData(years);
     } else if (statementType) {
         fetchSingleStatement(statementType, years);
     }
-  }, [years]);
+  }, [ticker, years, activeView, statementType]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
