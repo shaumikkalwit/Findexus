@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -11,6 +11,7 @@ from functools import lru_cache
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import pickle
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -18,7 +19,7 @@ load_dotenv()
 # --- Basic Setup ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-set_identity("shaumik.kalwit@gmail.com")
+set_identity("Findexus Financial App contact@findexus.com")
 
 app = FastAPI(title="Financial Statements API", version="1.0.0")
 
@@ -44,6 +45,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+token_auth_scheme = HTTPBearer()
+
+def get_current_user(token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)):
+    """
+    Dependency to validate the Supabase JWT token from the Authorization header.
+    This function acts as a gatekeeper for protected endpoints.
+    """
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Authentication service is unavailable.")
+    try:
+        # Use the Supabase client to verify the token (JWT)
+        user = supabase.auth.get_user(token.credentials)
+        return user.user
+    except Exception as e:
+        logger.error(f"Authentication failed: {e}")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 # --- Pydantic Response Models ---
 class FinancialResponse(BaseModel):
@@ -204,6 +226,7 @@ async def get_company_financial_data(ticker: str):
 async def get_income_statement(
     ticker: str,
     years: int = Query(20, description="Number of periods", ge=1, le=20),
+    user: dict = Depends(get_current_user)
 ):
     company_data = await get_company_financial_data(ticker)
     stmt = company_data['income_statement']
@@ -220,6 +243,7 @@ async def get_income_statement(
 async def get_balance_sheet(
     ticker: str,
     years: int = Query(20, description="Number of periods", ge=1, le=20),
+    user: dict = Depends(get_current_user)
 ):
     company_data = await get_company_financial_data(ticker)
     stmt = company_data['balance_sheet']
@@ -236,6 +260,7 @@ async def get_balance_sheet(
 async def get_cash_flow(
     ticker: str,
     years: int = Query(20, description="Number of years", ge=1, le=20),
+    user: dict = Depends(get_current_user)
 ):
     company_data = await get_company_financial_data(ticker)
     stmt = company_data['cash_flow']
@@ -252,6 +277,7 @@ async def get_cash_flow(
 async def get_comprehensive_financials(
     ticker: str,
     periods: int = Query(10, description="Number of periods", ge=1, le=20),
+    user: dict = Depends(get_current_user)
 ):
     company_data = await get_company_financial_data(ticker)
     
@@ -280,7 +306,8 @@ async def get_comprehensive_financials(
 @app.post("/financials/compare", response_model=ComparisonResponse)
 async def compare_companies_ratios(
     tickers: List[str],
-    periods: int = Query(10, description="Number of periods", ge=1, le=20)
+    periods: int = Query(10, description="Number of periods", ge=1, le=20),
+    user: dict = Depends(get_current_user)
 ):
     tasks = [get_company_financial_data(ticker) for ticker in tickers]
     results = await asyncio.gather(*tasks, return_exceptions=True)
