@@ -19,7 +19,7 @@ load_dotenv()
 # --- Basic Setup ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-set_identity("shaumik.kalwit@gmail.com")
+set_identity("Findexus Financial App contact@findexus.com")
 
 app = FastAPI(title="Financial Statements API", version="1.0.0")
 
