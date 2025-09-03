@@ -46,7 +46,7 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                         the long-term. <br></br>
                     </p>
                     <p>
-                        In doing so, this came with a good amount of reading financial documents and economic news regarding the company.
+                        In doing so, this came with a good amount of reading the financial documents of the company.
                         A lot of these financial documents were hard to access <em>and</em> time-consuming to read for multiple years. I tried searching
                         for alternatives but the best thing I found was viewing them in the past five years, while anything longer and you had to pay. <br></br>
                     </p>

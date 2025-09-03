@@ -197,7 +197,7 @@ async def get_company_financial_data(ticker: str):
         if response.data:
             cached_data = response.data[0]
             last_updated = datetime.fromisoformat(cached_data['last_updated']).astimezone(timezone.utc)
-            if datetime.now(timezone.utc) - last_updated < timedelta(days=30):
+            if datetime.now(timezone.utc) - last_updated < timedelta(days=180):
                 logger.info(f"CACHE HIT: Returning cached data for {ticker}.")
                 # Unpickle the data from the database
                 return pickle.loads(bytes.fromhex(cached_data['financial_data']))
