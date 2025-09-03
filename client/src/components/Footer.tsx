@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import AboutModal from './AboutModal'; // Import the new modal component
+import AboutModal from './AboutModal';
+import ContactModal from './ContactModal';
 
 // A simple component for the social/link icons
 const IconLink = ({ href, children }: { href: string, children: React.ReactNode }) => (
@@ -13,10 +14,13 @@ const IconLink = ({ href, children }: { href: string, children: React.ReactNode 
 
 export default function Footer() {
     const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+    const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
     return (
         <>
             <AboutModal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} />
+            <ContactModal isOpen={isContactModalOpen} onClose={() => setIsContactModalOpen(false)} />
+
             <footer className="bg-gray-900 border-t border-gray-800 mt-auto">
                 <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-6">
                     
@@ -54,6 +58,7 @@ export default function Footer() {
                     <div className="flex-1 flex justify-end">
                         <div className="flex items-center justify-center md:justify-end gap-6">
                         <Link href="/privacy" className="text-sm text-gray-400 hover:text-white transition-colors">Privacy Policy</Link>
+                        <button onClick={() => setIsContactModalOpen(true)} className="text-sm text-gray-400 hover:text-white transition-colors">Contact</button>
                         <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-white transition-colors">GitHub</a>
                         <button onClick={() => setIsAboutModalOpen(true)} className="text-sm text-gray-400 hover:text-white transition-colors">About</button>
                         </div>

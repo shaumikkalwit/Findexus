@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       {/* This new body structure uses flexbox to make the footer
         stick to the bottom of the page, even on short pages.
       */}
