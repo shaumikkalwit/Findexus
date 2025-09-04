@@ -1,41 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+// This component no longer needs its own state hooks.
 
-export default function DisclaimerBanner() {
-    const [isVisible, setIsVisible] = useState(false);
+interface DisclaimerBannerProps {
+    show: boolean; // NEW: The parent now tells this component whether to be visible.
+    onAcknowledge: () => void;
+}
 
-    useEffect(() => {
-        // This effect runs only once on the client-side when the component mounts.
-        // It checks if the user has previously dismissed the banner.
-        const dismissed = localStorage.getItem('disclaimerDismissed');
-        if (!dismissed) {
-            setIsVisible(true);
-        }
-    }, []);
-
-    const handleDismiss = () => {
-        // Hide the banner and save the preference in localStorage.
-        setIsVisible(false);
-        localStorage.setItem('disclaimerDismissed', 'true');
-    };
-
-    if (!isVisible) {
+export default function DisclaimerBanner({ show, onAcknowledge }: DisclaimerBannerProps) {
+    // If the parent says not to show, render nothing.
+    if (!show) {
         return null;
     }
 
+    // The handleClose function is simpler now, it just calls the parent's function.
+    const handleClose = () => {
+        onAcknowledge();
+    };
+
     return (
-        <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 p-4 z-50 animate-fade-in-up">
-            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-                <p className="text-sm text-gray-300 text-center sm:text-left">
-                    <span className="font-bold text-yellow-400">Disclaimer:</span> Data is obtained from public SEC filings.
+        <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 p-4 shadow-lg z-50 animate-fade-in-up">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-gray-300">
+                    <p>
+                        <strong className="font-semibold text-white">Disclaimer:</strong> Data is obtained from public SEC filings.
                     While we strive for accuracy, this information is for informational purposes only and may contain inaccuracies or
                     omissions due to errors while obtaining the information. It is not investment advice.
                     Always verify information and conduct your own research before making any financial decisions.
-                </p>
-                <button
-                    onClick={handleDismiss}
-                    className="px-4 py-2 text-sm font-semibold bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors flex-shrink-0"
+                    </p>
+                </div>
+                <button 
+                    onClick={handleClose}
+                    className="flex-shrink-0 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition"
                 >
                     Acknowledge
                 </button>
@@ -43,4 +39,3 @@ export default function DisclaimerBanner() {
         </div>
     );
 }
-
