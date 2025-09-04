@@ -6,19 +6,17 @@ import { useEffect } from 'react';
 interface ContactModalProps {
     isOpen: boolean;
     onClose: () => void;
+    userEmail: string | undefined; // Accept the user's email as a prop
 }
 
-export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
-    // IMPORTANT: Replace this placeholder with your actual Form ID from Formspree
+export default function ContactModal({ isOpen, onClose, userEmail }: ContactModalProps) {
     const [state, handleSubmit] = useForm("mwpnwvoo");
 
-    // Effect to handle closing the modal after successful submission
     useEffect(() => {
         if (state.succeeded) {
             setTimeout(() => {
                 onClose();
-                // Note: The form will reset automatically on close/reopen
-            }, 3000); // Close after 3 seconds
+            }, 3000);
         }
     }, [state.succeeded, onClose]);
 
@@ -26,12 +24,8 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
 
     if (state.succeeded) {
         return (
-            <div 
-                className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
-            >
-                <div 
-                    className="bg-gray-800 rounded-lg shadow-2xl p-8 w-full max-w-lg mx-4 text-center"
-                >
+            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+                <div className="bg-gray-800 rounded-lg shadow-2xl p-8 w-full max-w-lg mx-4 text-center">
                     <h2 className="text-2xl font-bold text-white">Thanks for your message!</h2>
                     <p className="text-gray-300 mt-2">I'll get back to you soon.</p>
                 </div>
@@ -55,22 +49,15 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                     </button>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Display the logged-in user's email as read-only text */}
                     <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">Your Email</label>
-                        <input
-                            id="email"
-                            type="email"
-                            name="email"
-                            required
-                            className="w-full px-3 py-2 text-gray-200 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <ValidationError 
-                            prefix="Email" 
-                            field="email"
-                            errors={state.errors}
-                            className="text-red-400 text-sm mt-1"
-                        />
+                        <p className="text-sm text-gray-400">
+                            Your message will be sent from: <span className="font-medium text-gray-200">{userEmail || '...'}</span>
+                        </p>
+                        {/* Add a hidden input to submit the email to Formspree */}
+                        <input type="hidden" name="email" value={userEmail || ''} />
                     </div>
+
                     <div>
                         <label htmlFor="message" className="block text-sm font-medium text-gray-300 mb-1">Message</label>
                         <textarea
@@ -104,4 +91,3 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
         </div>
     );
 }
-
