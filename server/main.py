@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Query, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -48,24 +48,23 @@ app.add_middleware(
 
 token_auth_scheme = HTTPBearer()
 
-def get_current_user(token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)):
+async def get_current_user(request: Request):
     """
-    Dependency to validate the Supabase JWT token from the Authorization header.
-    This function acts as a gatekeeper for protected endpoints.
+    Dependency to validate the user's Supabase JWT.
+    Creates a fresh Supabase client for each request to avoid race conditions.
     """
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Authentication service is unavailable.")
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     try:
-        # Use the Supabase client to verify the token (JWT)
-        user = supabase.auth.get_user(token.credentials)
-        return user.user
+        # Create a new, isolated Supabase client for this single authentication check
+        auth_supabase: Client = create_client(url, key)
+        user_response = auth_supabase.auth.get_user(token)
+        return user_response.user
     except Exception as e:
         logger.error(f"Authentication failed: {e}")
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
 # --- Pydantic Response Models ---
 class FinancialResponse(BaseModel):
