@@ -102,9 +102,9 @@ export default function Footer() {
                         {/* Column 3: Links */}
                         <div className="footer-links-container flex-1 flex justify-end">
                             <nav className="footer-navigation flex items-center justify-center md:justify-end gap-6">
-                                <Link href="/privacy" className="footer-nav-link text-sm text-gray-400 hover:text-white transition-colors">Privacy Policy</Link>
+                                {/* <Link href="/privacy" className="footer-nav-link text-sm text-gray-400 hover:text-white transition-colors">Privacy Policy</Link> */}
                                 <button onClick={handleContactClick} className="footer-nav-link text-sm text-gray-400 hover:text-white transition-colors">Contact</button>
-                                <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="footer-nav-link text-sm text-gray-400 hover:text-white transition-colors">GitHub</a>
+                                {/* <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="footer-nav-link text-sm text-gray-400 hover:text-white transition-colors">GitHub</a> */}
                                 <button onClick={() => setIsAboutModalOpen(true)} className="footer-nav-link text-sm text-gray-400 hover:text-white transition-colors">About</button>
                             </nav>
                         </div>

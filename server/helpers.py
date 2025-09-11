@@ -40,18 +40,32 @@ def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
         gross_profit_item = _find_item_contains(income_stmt, 'Gross Profit')
         net_income_item = _find_item_contains(income_stmt, 'Net Income')
         equity_item = _find_item_contains(balance_sheet, 'Equity')
-        long_term_debt_item = _find_item_contains(balance_sheet, 'Long-Term Debt')
         retained_earnings_item = _find_item_contains(balance_sheet, 'Retained Earnings')
         capex_item = _find_item_contains(cash_flow, 'property, plant, and equipment')
+        total_liabilities_item = _find_item_contains(balance_sheet, 'Liabilities')
+        current_liabilities_item = _find_item_contains(balance_sheet, 'Liabilities, Current')
+        noncurrent_liabilities_item = _find_item_contains(balance_sheet, 'Liabilities, Noncurrent')
+        other_noncurrent_liabilities_item = _find_item_contains(balance_sheet, 'Other Liabilities, Noncurrent')
 
         for period in income_stmt.periods:
             revenue = revenue_item.values.get(period) if revenue_item else None
             gross_profit = gross_profit_item.values.get(period) if gross_profit_item else None
             net_income = net_income_item.values.get(period) if net_income_item else None
-            total_equity = equity_item.values.get(period) if equity_item else None
-            long_term_debt = long_term_debt_item.values.get(period) if long_term_debt_item else 0
+            total_equity = equity_item.values.get(period) if equity_item else None        
             retained_earnings = retained_earnings_item.values.get(period) if retained_earnings_item else None
             capex = capex_item.values.get(period) if capex_item else None
+            
+            long_term_debt = None
+            if noncurrent_liabilities_item and other_noncurrent_liabilities_item:
+                noncurrent_liabilities = noncurrent_liabilities_item.values.get(period)
+                other_noncurrent_liabilities = other_noncurrent_liabilities_item.values.get(period)
+                if noncurrent_liabilities is not None and other_noncurrent_liabilities is not None:
+                    long_term_debt = noncurrent_liabilities - other_noncurrent_liabilities
+            elif total_liabilities_item and current_liabilities_item:
+                total_liabilities = total_liabilities_item.values.get(period)
+                current_liabilities = current_liabilities_item.values.get(period)
+                if total_liabilities is not None and current_liabilities is not None:
+                    long_term_debt = total_liabilities - current_liabilities
 
             if net_income is not None: ratios["Net Income"][period] = net_income
             if retained_earnings is not None: ratios["Retained Earnings"][period] = retained_earnings

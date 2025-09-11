@@ -34,14 +34,14 @@ const getMetricStyles = (metricName: string, value: number | null, prevValue: nu
             }
         }
     } 
-    else if (name.includes('gross margin')) {
+    if (name.includes('gross margin')) {
         colorClass = value > 0.37 ? 'text-green-400' : 'text-red-400';
-    } else if (name.includes('net margin')) {
-        colorClass = value > 0.2 ? 'text-green-400' : 'text-red-400';
-    } else if (name.includes('years to pay off debt')) {
+    } if (name.includes('net margin')) {
+        colorClass = value > 0.185 ? 'text-green-400' : 'text-red-400';
+    } if (name.includes('years to pay off debt')) {
         colorClass = value < 4 ? 'text-green-400' : 'text-red-400';
-    } else if (name.includes('capex to net income')) {
-        if (value < 0.25) colorClass = 'text-green-400';
+    } if (name.includes('capex to net income')) {
+        if (value <= 0.25) colorClass = 'text-green-400';
         else if (value <= 0.5) colorClass = 'text-yellow-400';
         else colorClass = 'text-red-400';
     }
