@@ -23,3 +23,9 @@ export type ComprehensiveData = {
         } 
     };
 };
+
+export type CompanyComparisonData = {
+  ticker: string;
+  name: string;
+  metrics: ComprehensiveData['key_metrics'];
+};

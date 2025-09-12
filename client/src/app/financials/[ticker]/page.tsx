@@ -82,8 +82,13 @@ export default function FinancialsPage({ params }: { params: Promise<{ ticker: s
       const data = await fetchWithAuth(`/api/financial/${ticker}/comprehensive?periods=${numYears}`);
       setComprehensiveData(data);
       if(!companyName) setCompanyName(data.company_info.name);
-    } catch (e: any) { setError(e.message); }
-    finally { setIsLoading(false); }
+    } catch (e) {
+      if (e instanceof Error) {
+          setError(e.message);
+      } else {
+          setError("An unknown error occurred.");
+      }
+    } finally { setIsLoading(false); }
   };
 
   const fetchSingleStatement = async (type: string, numYears: number) => {
@@ -93,8 +98,13 @@ export default function FinancialsPage({ params }: { params: Promise<{ ticker: s
     try {
       const data = await fetchWithAuth(`/api/financial/${ticker}/${type}?years=${numYears}`);
       setFinancialData(data);
-    } catch (e: any) { setError(e.message); } 
-    finally { setIsLoading(false); }
+    } catch (e) {
+      if (e instanceof Error) {
+          setError(e.message);
+      } else {
+          setError("An unknown error occurred.");
+      }
+    } finally { setIsLoading(false); }
   };
   
   useEffect(() => {

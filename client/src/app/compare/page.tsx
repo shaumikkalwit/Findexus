@@ -143,8 +143,12 @@ function ComparePageContent() {
             setComparisonData(prevData => [...prevData, newData]);
             updateURL([...tickers, upperTicker]);
 
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e) {
+            if (e instanceof Error) {
+                setError(e.message);
+            } else {
+                setError("An unknown error occurred.");
+            }
         } finally {
             setIsLoading(originalLoadingState);
             setIsModalOpen(false);

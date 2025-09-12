@@ -1,10 +1,11 @@
 'use client';
 
 import MetricComparisonCard from './MetricComparisonCard';
+import { CompanyComparisonData } from '@/lib/types';
 
 interface ComparisonTableProps {
     periods: string[];
-    data: any[]; // Array of company data
+    data: CompanyComparisonData[];
     onRemove: (ticker: string) => void;
 }
 

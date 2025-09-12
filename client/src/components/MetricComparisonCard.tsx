@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { CompanyComparisonData } from '@/lib/types';
 
 // Re-using helpers from your original design for consistency
 const formatMetricValue = (metricName: string, value: number | null | undefined): string => {
-    // **FIX**: Add a guard clause to handle null or undefined values safely.
     if (value === null || value === undefined) {
         return '—'; // Return a consistent placeholder for missing data.
     }
@@ -55,7 +55,7 @@ const getComparisonMetricStyles = (
 interface MetricComparisonCardProps {
     metricName: string;
     periods: string[];
-    data: any[]; // Array of company data
+    data: CompanyComparisonData[]; // Array of company data
     onRemove: (ticker: string) => void;
 }
 
