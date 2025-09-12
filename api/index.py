@@ -134,7 +134,6 @@ async def get_company_financial_data(ticker: str):
     return full_data
 
 # --- API Endpoints ---
-
 @app.get("/api/financial/{ticker}/income", response_model=FinancialResponse)
 async def get_income_statement(
     ticker: str,
