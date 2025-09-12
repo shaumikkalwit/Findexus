@@ -70,7 +70,6 @@ async def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
 # --- Core Data Fetching and Caching Logic ---
-
 @lru_cache(maxsize=128)
 def get_company_financials_sync(ticker: str):
     """
