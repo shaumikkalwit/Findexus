@@ -78,7 +78,7 @@ function ComparePageContent() {
         
         try {
             const promises = tickersToFetch.map(ticker =>
-                fetchWithAuth(`http://127.0.0.1:8000/financial/${ticker}/comprehensive?periods=${numYears}`)
+                fetchWithAuth(`/api/financial/${ticker}/comprehensive?periods=${numYears}`)
             );
 
             const results: ComprehensiveData[] = await Promise.all(promises);
@@ -113,7 +113,7 @@ function ComparePageContent() {
     const updateURL = (newTickers: string[]) => {
         const uniqueTickers = [...new Set(newTickers.map(t => t.toUpperCase()))];
         setTickers(uniqueTickers);
-        router.replace(`/compare?tickers=${uniqueTickers.join(',')}`);
+        router.replace(`/api/compare?tickers=${uniqueTickers.join(',')}`);
     }
 
     const handleAddCompany = async (newTicker: string) => {
@@ -126,7 +126,7 @@ function ComparePageContent() {
         const originalLoadingState = isLoading;
         setIsLoading(true);
         try {
-            const data: ComprehensiveData = await fetchWithAuth(`http://127.0.0.1:8000/financial/${upperTicker}/comprehensive?periods=${years}`);
+            const data: ComprehensiveData = await fetchWithAuth(`/api/financial/${upperTicker}/comprehensive?periods=${years}`);
 
             const newData: CompanyComparisonData = {
                 ticker: data.company_info.ticker,

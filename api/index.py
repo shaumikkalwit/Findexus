@@ -38,15 +38,15 @@ else:
     logger.info("Successfully connected to Supabase.")
 
 # --- CORS Middleware ---
-origins = [
-    "http://localhost:3000",
-]
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+origins = [FRONTEND_URL, ]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 token_auth_scheme = HTTPBearer()
@@ -136,7 +136,7 @@ async def get_company_financial_data(ticker: str):
 
 # --- API Endpoints ---
 
-@app.get("/financial/{ticker}/income", response_model=FinancialResponse)
+@app.get("/api/financial/{ticker}/income", response_model=FinancialResponse)
 async def get_income_statement(
     ticker: str,
     years: int = Query(20, description="Number of periods", ge=1, le=20),
@@ -153,7 +153,7 @@ async def get_income_statement(
         metadata={'period_type': 'annual', 'concise_format': True}
     )
 
-@app.get("/financial/{ticker}/balance", response_model=FinancialResponse)  
+@app.get("/api/financial/{ticker}/balance", response_model=FinancialResponse)  
 async def get_balance_sheet(
     ticker: str,
     years: int = Query(20, description="Number of periods", ge=1, le=20),
@@ -170,7 +170,7 @@ async def get_balance_sheet(
         metadata={'period_type': 'annual', 'concise_format': True}
     )
 
-@app.get("/financial/{ticker}/cashflow", response_model=FinancialResponse)
+@app.get("/api/financial/{ticker}/cashflow", response_model=FinancialResponse)
 async def get_cash_flow(
     ticker: str,
     years: int = Query(20, description="Number of years", ge=1, le=20),
@@ -187,7 +187,7 @@ async def get_cash_flow(
         metadata={'period_type': 'annual', 'concise_format': True}
     )
 
-@app.get("/financial/{ticker}/comprehensive", response_model=ComprehensiveFinancialResponse)
+@app.get("/api/financial/{ticker}/comprehensive", response_model=ComprehensiveFinancialResponse)
 async def get_comprehensive_financials(
     ticker: str,
     periods: int = Query(10, description="Number of periods", ge=1, le=20),
@@ -217,7 +217,7 @@ async def get_comprehensive_financials(
         metadata={'period_type': 'annual', 'concise_format': True}
     )
 
-@app.post("/financials/compare", response_model=ComparisonResponse)
+@app.post("/api/financials/compare", response_model=ComparisonResponse)
 async def compare_companies_ratios(
     tickers: List[str],
     periods: int = Query(10, description="Number of periods", ge=1, le=20),

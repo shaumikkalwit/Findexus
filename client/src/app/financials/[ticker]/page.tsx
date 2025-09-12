@@ -79,7 +79,7 @@ export default function FinancialsPage({ params }: { params: Promise<{ ticker: s
     setIsLoading(true);
     setError(null);
     try {
-      const data = await fetchWithAuth(`http://127.0.0.1:8000/financial/${ticker}/comprehensive?periods=${numYears}`);
+      const data = await fetchWithAuth(`/api/financial/${ticker}/comprehensive?periods=${numYears}`);
       setComprehensiveData(data);
       if(!companyName) setCompanyName(data.company_info.name);
     } catch (e: any) { setError(e.message); }
@@ -91,7 +91,7 @@ export default function FinancialsPage({ params }: { params: Promise<{ ticker: s
     setIsLoading(true);
     setError(null);
     try {
-      const data = await fetchWithAuth(`http://127.0.0.1:8000/financial/${ticker}/${type}?years=${numYears}`);
+      const data = await fetchWithAuth(`/api/financial/${ticker}/${type}?years=${numYears}`);
       setFinancialData(data);
     } catch (e: any) { setError(e.message); } 
     finally { setIsLoading(false); }
