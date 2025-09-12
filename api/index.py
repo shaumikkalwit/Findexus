@@ -81,9 +81,9 @@ def get_company_financials_sync(ticker: str):
         company = Company(ticker)
         if not company.facts: return None
 
-        income_stmt = company.income_statement(periods=20, annual=True, concise_format=True)
-        balance_sheet = company.balance_sheet(periods=20, annual=True, concise_format=True)
-        cash_flow = company.cash_flow(periods=20, annual=True, concise_format=True)
+        income_stmt = company.income_statement(periods=20, annual=True)
+        balance_sheet = company.balance_sheet(periods=20, annual=True)
+        cash_flow = company.cash_flow(periods=20, annual=True)
         
         if not income_stmt or not income_stmt.periods: return None
 
@@ -148,7 +148,7 @@ async def get_income_statement(
         company_info=company_data['company_info'],
         periods=stmt.periods,
         data=_convert_statement_to_dict(stmt),
-        metadata={'period_type': 'annual', 'concise_format': True}
+        metadata={'period_type': 'annual'}
     )
 
 @app.get("/api/financial/{ticker}/balance", response_model=FinancialResponse)  
@@ -165,7 +165,7 @@ async def get_balance_sheet(
         company_info=company_data['company_info'],
         periods=stmt.periods,
         data=_convert_statement_to_dict(stmt),
-        metadata={'period_type': 'annual', 'concise_format': True}
+        metadata={'period_type': 'annual'}
     )
 
 @app.get("/api/financial/{ticker}/cashflow", response_model=FinancialResponse)
@@ -182,7 +182,7 @@ async def get_cash_flow(
         company_info=company_data['company_info'],
         periods=stmt.periods,
         data=_convert_statement_to_dict(stmt),
-        metadata={'period_type': 'annual', 'concise_format': True}
+        metadata={'period_type': 'annual'}
     )
 
 @app.get("/api/financial/{ticker}/comprehensive", response_model=ComprehensiveFinancialResponse)
@@ -212,7 +212,7 @@ async def get_comprehensive_financials(
         balance_sheet=_convert_statement_to_dict(balance_sheet),
         cash_flow=_convert_statement_to_dict(cash_flow),
         key_metrics=key_metrics,
-        metadata={'period_type': 'annual', 'concise_format': True}
+        metadata={'period_type': 'annual'}
     )
 
 @app.post("/api/financials/compare", response_model=ComparisonResponse)
