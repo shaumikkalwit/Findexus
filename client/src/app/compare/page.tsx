@@ -96,8 +96,12 @@ function ComparePageContent() {
             setPeriods(Array.from(allPeriods).sort().reverse());
             setComparisonData(formattedData);
 
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e) {
+            if (e instanceof Error) {
+                setError(e.message);
+            } else {
+                setError("An unknown error occurred.");
+            }
         } finally {
             setIsLoading(false);
         }

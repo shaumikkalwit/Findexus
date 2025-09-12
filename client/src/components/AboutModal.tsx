@@ -53,14 +53,14 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                     </p>
                     <h3 className="text-lg font-semibold text-slate-100">Motivation</h3>
                     <p>
-                        I've always been interested in stocks and investing. ETFs and index funds have always been my go-to form
+                        I&apos;ve always been interested in stocks and investing. ETFs and index funds have always been my go-to form
                         of investing. But as I grew more interested in investing in individual companies for the long term,
                         I ran into a common problem. I wanted to find businesses with a durable competitive advantage.
                     </p>
                     <p>
                         I followed the principles in the book <em>Warren Buffett and the Interpretation of Financial Statements: 
                             The Search for the Company with a Durable Competitive Advantage </em> 
-                            written by Mary Buffett and David Clark. While the author's name might raise an eyebrow, 
+                            written by Mary Buffett and David Clark. While the author&apos;s name might raise an eyebrow, 
                             the book is highly regarded for its practical approach. Co-authored by his former daughter-in-law, 
                             Mary Buffett, who had over a decade of firsthand exposure to his principles, and David Clark,
                             a noted portfolio manager, it excels at one thing: demystifying the complex world of financial statements.
@@ -71,14 +71,14 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                         and key ratios was surprisingly difficult, and most tools that offered it were hidden behind a paywall.
                     </p>
                     <p>
-                        So, <b>I decided to fix this.</b> This tool aims to automate Buffett's alleged philosophy from the book, into a clear, quantitative framework for finding companies with a durable 
+                        So, <b>I decided to fix this.</b> This tool aims to automate Buffett&apos;s alleged philosophy from the book, into a clear, quantitative framework for finding companies with a durable 
                         competitive advantage.
                     </p>
 
                      <h3 className="text-lg font-semibold text-slate-100">How It Works</h3>
                     <p>
-                        If you want to use this, simply login with your Gmail, and you have access to companies'
-                        income statements, balance sheets, and cashflow statements until 2009. The SEC's EDGAR database, which this tool uses, generally provides comprehensive digital data starting from around that time.
+                        If you want to use this, simply login with your Gmail, and you have access to companies&apos;
+                        income statements, balance sheets, and cashflow statements until 2009. The SEC&apos;s EDGAR database, which this tool uses, generally provides comprehensive digital data starting from around that time.
                     </p>
                     {/* <div className="relative w-full h-48 rounded-lg overflow-hidden my-4">
                         <Image src="/placeholderimg.jpeg" alt="Financials" layout="fill" objectFit="cover" />
@@ -98,8 +98,8 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                     <ul className="list-disc list-inside space-y-2 text-slate-300">
                         <li><b>Net Income:</b> Total Revenue - Total Expenses, is green/red if it increased/decreased from the previous year respectively.</li>
                         <li><b>Retained Earnings:</b> Beginning Retained Earnings + Net Income - Dividends Paid, is responsible for showing how much the company reinvests its earnings.</li>
-                        <li><b>Gross Margin:</b> Total Gross Profit/Revenue, helps show the business' scalability, bigger the business, bigger the margin. I usually look for around 40% gross margin. So, if it is greater than or equal to 40%, it will appear green.</li>
-                        <li><b>Net Margin:</b> Net Income/Total Revenue, is a financial ratio that shows the percentage of revenue that remains as profit after all expenses. I look for greater than or equal to 20%, which is when it'll appear green.</li>
+                        <li><b>Gross Margin:</b> Total Gross Profit/Revenue, helps show the business&apos; scalability, bigger the business, bigger the margin. I usually look for around 40% gross margin. So, if it is greater than or equal to 40%, it will appear green.</li>
+                        <li><b>Net Margin:</b> Net Income/Total Revenue, is a financial ratio that shows the percentage of revenue that remains as profit after all expenses. I look for greater than or equal to 20%, which is when it&apos;ll appear green.</li>
                         <li><b>Return On Equity (ROE):</b> Net Income/Total Equity, measures how effectively a company generates profits from the money invested by its shareholders. I look for steady increases over time.</li>
                         <li><b>Years to Pay off Debt:</b> Total Debt/Net Income, to measure debt. An exceptional business seldom requires a lot of debt to expand. Ideally, it should be able to use its strong cashflow. This should be less than four years.</li>
                         <li><b>Capex to Net Income:</b> Capital Expenditures/Net Income, is money being spent on properties, equipments, plans, etc. Should be less than 25% over a period of time, even 50% is acceptable.</li>
