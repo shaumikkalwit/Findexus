@@ -10,7 +10,7 @@ from functools import lru_cache
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import pickle
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
 
 # --- Import from other modules ---
 from helpers import _convert_statement_to_dict, _calculate_financial_ratios
