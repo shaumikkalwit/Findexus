@@ -57,7 +57,11 @@ function ComparePageContent() {
     const fetchWithAuth = async (url: string, options?: RequestInit) => {
         if (!session) throw new Error("Not authenticated");
         
-        const res = await fetch(url, {
+        // Get the base URL from environment variables, defaulting to an empty string
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+        const fullUrl = `${apiBaseUrl}${url}`; // Construct the full URL
+
+        const res = await fetch(fullUrl, { // Use the full URL
             ...options,
             headers: {
                 ...options?.headers,
@@ -117,7 +121,7 @@ function ComparePageContent() {
     const updateURL = (newTickers: string[]) => {
         const uniqueTickers = [...new Set(newTickers.map(t => t.toUpperCase()))];
         setTickers(uniqueTickers);
-        router.replace(`/api/compare?tickers=${uniqueTickers.join(',')}`);
+        router.replace(`/compare?tickers=${uniqueTickers.join(',')}`, { scroll: false });
     }
 
     const handleAddCompany = async (newTicker: string) => {

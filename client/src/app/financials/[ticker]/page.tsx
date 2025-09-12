@@ -62,10 +62,25 @@ export default function FinancialsPage({ params }: { params: Promise<{ ticker: s
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [financialsRef]);
 
+  // const fetchWithAuth = async (url: string) => {
+  //   if (!session) throw new Error("Not authenticated");
+    
+  //   const res = await fetch(url, {
+  //     headers: {
+  //       'Authorization': `Bearer ${session.access_token}`
+  //     }
+  //   });
+  //   if (!res.ok) throw new Error((await res.json()).detail);
+  //   return res.json();
+  // };
   const fetchWithAuth = async (url: string) => {
     if (!session) throw new Error("Not authenticated");
     
-    const res = await fetch(url, {
+    // Get the base URL from environment variables, defaulting to an empty string
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+    const fullUrl = `${apiBaseUrl}${url}`; // Construct the full URL
+
+    const res = await fetch(fullUrl, { // Use the full URL
       headers: {
         'Authorization': `Bearer ${session.access_token}`
       }
