@@ -9,8 +9,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of your application code
-COPY . .
+COPY api /app
 
 # Command to run your FastAPI app with Uvicorn
 # Render will automatically use the PORT environment variable
-CMD ["uvicorn", "index:app", "--host", "0.0.0.0", "--port", "10000"]
+CMD ["uvicorn", "index:app", "--host", "0.0.0.0", "--port", "8000"]
