@@ -67,13 +67,13 @@ def _calculate_financial_ratios(income_stmt, balance_sheet, cash_flow):
                 if total_liabilities is not None and current_liabilities is not None:
                     long_term_debt = total_liabilities - current_liabilities
 
-            if net_income is not None: ratios["Net Income"][period] = net_income
-            if retained_earnings is not None: ratios["Retained Earnings"][period] = retained_earnings
-            if revenue and gross_profit and revenue != 0: ratios["Gross Margin"][period] = gross_profit / revenue
-            if revenue and net_income and revenue != 0: ratios["Net Margin"][period] = net_income / revenue
-            if net_income and total_equity and total_equity != 0: ratios["Return on Equity (ROE)"][period] = net_income / total_equity
-            if net_income and net_income != 0: ratios["Years to Pay Off Debt"][period] = long_term_debt / net_income
-            if net_income and capex and net_income != 0: ratios["Capex to Net Income"][period] = abs(capex) / net_income
+            ratios["Net Income"][period] = net_income if net_income is not None else None
+            ratios["Retained Earnings"][period] = retained_earnings if retained_earnings is not None else None
+            ratios["Gross Margin"][period] = gross_profit / revenue if revenue and gross_profit and revenue != 0 else None
+            ratios["Net Margin"][period] = net_income / revenue if revenue and net_income and revenue != 0 else None
+            ratios["Return on Equity (ROE)"][period] = net_income / total_equity if net_income and total_equity and total_equity != 0 else None
+            ratios["Years to Pay Off Debt"][period] = long_term_debt / net_income if net_income and net_income != 0 and long_term_debt else None
+            ratios["Capex to Net Income"][period] = abs(capex) / net_income if net_income and capex and net_income != 0 else None
     except Exception as e:
         logger.error(f"Error calculating ratios: {e}", exc_info=True)
     return {k: v for k, v in ratios.items() if v}

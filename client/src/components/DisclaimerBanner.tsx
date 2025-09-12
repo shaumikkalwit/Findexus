@@ -25,7 +25,7 @@ export default function DisclaimerBanner({ show, onAcknowledge }: DisclaimerBann
                     <p>
                         <strong className="font-semibold text-white">Disclaimer:</strong> Data is obtained from public SEC filings.
                     While we strive for accuracy, this information is for informational purposes only and may contain inaccuracies or
-                    omissions due to errors while obtaining the information. This is also NOT telling your what to invest it, nor is it investment advice.
+                    omissions due to errors while obtaining the information. Common errors are showing quarterly numbers instead of annual. This is also NOT telling you what to invest in, nor is it investment advice.
                     Always verify information and conduct your own research before making any financial decisions.
                     </p>
                 </div>

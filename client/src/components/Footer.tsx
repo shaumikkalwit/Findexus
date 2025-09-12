@@ -71,7 +71,6 @@ export default function Footer() {
             <footer className="site-footer bg-gray-800 border-t border-gray-700 mt-auto">
                 <div className="footer-content-container max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                     <div className="footer-grid grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-                        {/* Column 1: Profile Info */}
                         <div className="profile-container flex-1 flex justify-start">
                             <div className="profile-card flex items-center gap-4">
                                 <img 
@@ -103,7 +102,7 @@ export default function Footer() {
                         <div className="footer-links-container flex-1 flex justify-end">
                             <nav className="footer-navigation flex items-center justify-center md:justify-end gap-6">
                                 {/* <Link href="/privacy" className="footer-nav-link text-sm text-gray-400 hover:text-white transition-colors">Privacy Policy</Link> */}
-                                <button onClick={handleContactClick} className="footer-nav-link text-sm text-gray-400 hover:text-white transition-colors">Contact</button>
+                                {/* <button onClick={handleContactClick} className="footer-nav-link text-sm text-gray-400 hover:text-white transition-colors">Contact</button> */}
                                 {/* <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="footer-nav-link text-sm text-gray-400 hover:text-white transition-colors">GitHub</a> */}
                                 <button onClick={() => setIsAboutModalOpen(true)} className="footer-nav-link text-sm text-gray-400 hover:text-white transition-colors">About</button>
                             </nav>

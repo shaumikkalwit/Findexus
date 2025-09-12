@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Image from 'next/image'; // Import the Next.js Image component for optimization
 
 interface AboutModalProps {
     isOpen: boolean;
@@ -29,71 +30,87 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
             onClick={onClose} // Close modal on overlay click
         >
             <div 
-                className="bg-gray-800 rounded-lg shadow-2xl p-8 w-full max-w-2xl mx-4 transform transition-all duration-300"
+                // --- FIX: Added max-h-[80vh] to constrain the modal's height ---
+                className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-2xl mx-4 transform transition-all duration-300 flex flex-col max-h-[80vh] border border-slate-700"
                 onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the modal
             >
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-white">About Findexus</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
+                <div className="flex-shrink-0 p-6 border-b border-slate-700">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold text-white">About Findexus</h2>
+                        <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
                 </div>
-                <div className="text-gray-300 space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-100">Motivation</h3>
+
+                {/* --- FIX: Made this content area scrollable --- */}
+                <div className="flex-grow p-6 space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+                    <p>
+                        <b>DISCLAIMER: </b> Data is obtained from public SEC filings.
+                    While we strive for accuracy, this information is for informational purposes only and may contain inaccuracies or
+                    omissions due to errors while obtaining the information. Common errors are showing quarterly numbers instead of annual, especially around/before 2019 (but most of the ratios still are somewhat accurate). This is also NOT telling you what to invest in, nor is it investment advice.
+                    Always verify information and conduct your own research before making any financial decisions.
+                    </p>
+                    <h3 className="text-lg font-semibold text-slate-100">Motivation</h3>
                     <p>
                         I've always been interested in stocks and investing. ETFs and index funds have always been my go-to form
-                        of investing, but recently I wanted to also put money into individual companies. Going based off how I like
-                        to invest, I wanted to pick companies that I thought would grow over the long-term, ones with a consistent history
-                        of growing.<br></br>
+                        of investing. But as I grew more interested in investing in individual companies for the long term,
+                        I ran into a common problem. I wanted to find businesses with a durable competitive advantage.
                     </p>
                     <p>
-                        In doing so, this came with a good amount of reading the financial documents of the company.
-                        A lot of these financial documents were hard to access <em>and</em> time-consuming to pull common valuation ratios for multiple years. I tried searching
-                        for alternatives but the best thing I found was viewing them in the past five years, while anything longer and you had to pay. <br></br>
+                        I followed the principles in the book <em>Warren Buffett and the Interpretation of Financial Statements: 
+                            The Search for the Company with a Durable Competitive Advantage </em> 
+                            written by Mary Buffett and David Clark. While the author's name might raise an eyebrow, 
+                            the book is highly regarded for its practical approach. Co-authored by his former daughter-in-law, 
+                            Mary Buffett, who had over a decade of firsthand exposure to his principles, and David Clark,
+                            a noted portfolio manager, it excels at one thing: demystifying the complex world of financial statements.
                     </p>
                     <p>
-                        So, <b>I decided to fix this.</b>
+                        In trying to implement the practices in this book, required digging through years of financial documents, 
+                        a process that was both time-consuming and frustrating. Accessing more than five years of historical data 
+                        and key ratios was surprisingly difficult, and most tools that offered it were hidden behind a paywall.
+                    </p>
+                    <p>
+                        So, <b>I decided to fix this.</b> This tool aims to automate Buffett's alleged philosophy from the book, into a clear, quantitative framework for finding companies with a durable 
+                        competitive advantage.
                     </p>
 
-                     <h3 className="text-lg font-semibold text-gray-100">How It Works</h3>
+                     <h3 className="text-lg font-semibold text-slate-100">How It Works</h3>
                     <p>
-                        IF you want to use this, simply login with your Gmail, and you have access to companies'
-                        income statements, balance sheets, and cashflow statements until 2009 
-                        (This is because __chatgpt fill in this part and explain why my data only goes until 2009___).
+                        If you want to use this, simply login with your Gmail, and you have access to companies'
+                        income statements, balance sheets, and cashflow statements until 2009. The SEC's EDGAR database, which this tool uses, generally provides comprehensive digital data starting from around that time.
                     </p>
-                    <img src="./public/placeholderimg.jpeg" alt="Financials"/>
+                    {/* <div className="relative w-full h-48 rounded-lg overflow-hidden my-4">
+                        <Image src="/placeholderimg.jpeg" alt="Financials" layout="fill" objectFit="cover" />
+                    </div> */}
 
                     <p>
-                        You can also access common ratios I used for valuation when looking at these companies.<br></br>
+                        You can also access common ratios I used for valuation when looking at these companies.
                     </p>
-                    <img src="./public/placeholderimg.jpeg" alt="Overview"/>
+                     <div className="relative w-full h-96 rounded-lg overflow-hidden my-4">
+                        <Image src="/Overview.png" alt="Overview" layout="fill" objectFit="contain" />
+                    </div>
                     <p>
                         The numbers/ratios I have are Net Income, Retained Earnings, Gross Margin, Net Margin, Return On Equity (ROE),
-                        Years to Pay off Debt, and Capex to Net Income.<br></br>
-
-                        <em>Net Income</em> = Total Revenue - Total Expenses, is green/red if it increased/decreased from the previous year respectively.<br></br>
-
-                        <em>Retained Earnings</em> = Beginning Retained Earnings + Net Income - Dividends Paid, is responsible for showing how much the company reinvests its earnings.<br></br>
-
-                        <em>Gross Margin</em> = Total Gross Profit/Revenue, helps show the business' scalability, bigger the business, bigger the margin. I usually look for
-                        around 40% gross margin. So, if it is greater than or equal to 40%, it will appear green.<br></br>
-
-                        <em>Net Margin</em> = Net Income/Total Revenue, is a financial ratio that shows the percentage of revenue that remains as profit after all expenses. I look for 
-                        greater than or equal to 20%, which is when it'll appear green.<br></br>
-
-                        <em>Return On Equity (ROE)</em> = Net Income/Total Equity, measures how effectively a company generates profits from the money invested by its shareholders. 
-                        I look for steady increases over time.<br></br>
-
-                        <em>Years to Pay off Debt</em> = Long Term Debt/Net Income, an exceptional business seldom requires a lot of debt to expand. Ideally, it should be able to 
-                        use its strong cashflow. This should be less than four years.<br></br>
-
-                        <em>Retained Earnings</em>, Total Revenue - Total <br></br>
+                        Years to Pay off Debt, and Capex to Net Income.
                     </p>
+                    
+                    <ul className="list-disc list-inside space-y-2 text-slate-300">
+                        <li><b>Net Income:</b> Total Revenue - Total Expenses, is green/red if it increased/decreased from the previous year respectively.</li>
+                        <li><b>Retained Earnings:</b> Beginning Retained Earnings + Net Income - Dividends Paid, is responsible for showing how much the company reinvests its earnings.</li>
+                        <li><b>Gross Margin:</b> Total Gross Profit/Revenue, helps show the business' scalability, bigger the business, bigger the margin. I usually look for around 40% gross margin. So, if it is greater than or equal to 40%, it will appear green.</li>
+                        <li><b>Net Margin:</b> Net Income/Total Revenue, is a financial ratio that shows the percentage of revenue that remains as profit after all expenses. I look for greater than or equal to 20%, which is when it'll appear green.</li>
+                        <li><b>Return On Equity (ROE):</b> Net Income/Total Equity, measures how effectively a company generates profits from the money invested by its shareholders. I look for steady increases over time.</li>
+                        <li><b>Years to Pay off Debt:</b> Total Debt/Net Income, to measure debt. An exceptional business seldom requires a lot of debt to expand. Ideally, it should be able to use its strong cashflow. This should be less than four years.</li>
+                        <li><b>Capex to Net Income:</b> Capital Expenditures/Net Income, is money being spent on properties, equipments, plans, etc. Should be less than 25% over a period of time, even 50% is acceptable.</li>
+                    </ul>
 
                     <p>
                         And, you can also compare companies with each other.
                     </p>
-                    <img src="./public/placeholderimg.jpeg" alt="Compare"/>
+                    <div className="relative w-full h-96 rounded-lg overflow-hidden my-4">
+                        <Image src="/CompanyComparison.png" alt="Compare" layout="fill" objectFit="contain" />
+                    </div>
                 </div>
             </div>
         </div>
