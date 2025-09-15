@@ -1,0 +1,10 @@
+# requirements.txt
+
+fastapi
+uvicorn
+supabase
+edgartools
+spacy==3.8.7
+pandas
+selenium
+python-dotenv
