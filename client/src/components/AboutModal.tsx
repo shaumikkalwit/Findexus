@@ -51,7 +51,7 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                     omissions due to errors while obtaining the information. This is also NOT telling you what to invest in, nor is it investment advice.
                     Always verify information and conduct your own research before making any financial decisions.
                     <br></br><br></br>
-                    A quick heads-up: This is a free service. If the app hasn't been used in 15 minutes, it may take up to a minute to 'wake up' and load your first results. After that, everything will be much faster. Thanks for your patience!
+                    A quick heads-up: This is a free service. If the app hasn&apos;t been used in 15 minutes, it may take up to a minute to &apos;wake up&apos; and load your first results. After that, everything will be much faster. Thanks for your patience!
                     </p>
                     <h3 className="text-lg font-semibold text-slate-100">Motivation</h3>
                     <p>

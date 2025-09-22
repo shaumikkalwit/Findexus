@@ -25,7 +25,7 @@ export default function DisclaimerBanner({ show, onAcknowledge }: DisclaimerBann
                     While we strive for accuracy, this information is for informational purposes only and may contain inaccuracies or
                     omissions due to errors while obtaining the information. This is also NOT telling you what to invest in, nor is it investment advice.
                     Always verify information and conduct your own research before making any financial decisions.
-                    A quick heads-up: This is a free service. If the app hasn't been used in 15 minutes, it may take up to a minute to 'wake up' and load your first results. After that, everything will be much faster. Thanks for your patience!
+                    A quick heads-up: This is a free service. If the app hasn&apos;t been used in 15 minutes, it may take up to a minute to &apos;wake up&apos; and load your first results. After that, everything will be much faster. Thanks for your patience!
                     </p>
                 </div>
                 <button 
