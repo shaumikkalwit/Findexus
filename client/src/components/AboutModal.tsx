@@ -48,8 +48,10 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                     <p>
                         <b>DISCLAIMER: </b> Data is obtained from public SEC filings.
                     While we strive for accuracy, this information is for informational purposes only and may contain inaccuracies or
-                    omissions due to errors while obtaining the information. Common errors are showing quarterly numbers instead of annual, especially around/before 2019 (but most of the ratios still are somewhat accurate). This is also NOT telling you what to invest in, nor is it investment advice.
+                    omissions due to errors while obtaining the information. This is also NOT telling you what to invest in, nor is it investment advice.
                     Always verify information and conduct your own research before making any financial decisions.
+                    <br></br><br></br>
+                    A quick heads-up: This is a free service. If the app hasn't been used in 15 minutes, it may take up to a minute to 'wake up' and load your first results. After that, everything will be much faster. Thanks for your patience!
                     </p>
                     <h3 className="text-lg font-semibold text-slate-100">Motivation</h3>
                     <p>
