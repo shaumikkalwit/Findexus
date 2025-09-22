@@ -49,12 +49,10 @@ export default function ContactModal({ isOpen, onClose, userEmail }: ContactModa
                     </button>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Display the logged-in user's email as read-only text */}
                     <div>
                         <p className="text-sm text-gray-400">
                             Your message will be sent from: <span className="font-medium text-gray-200">{userEmail || '...'}</span>
                         </p>
-                        {/* Add a hidden input to submit the email to Formspree */}
                         <input type="hidden" name="email" value={userEmail || ''} />
                     </div>
 

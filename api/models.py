@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Dict, Any
 
-# --- Pydantic Response Models ---
+# Pydantic Response Models
 class FinancialResponse(BaseModel):
     company_info: Dict[str, Any]
     periods: List[str]
