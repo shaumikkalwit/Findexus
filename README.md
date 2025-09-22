@@ -29,7 +29,7 @@ For many investors, the research/learning process is fragmented. Juggling multip
 
 ## Built With
 
-* **Frontend:** [Next.js](https://nextjs.org/) (React) & [Tailwind CSS](https://tailwindcss.com/)
+* **Frontend:** [Next.js](https://nextjs.org/) (React)
 * **Backend:** [FastAPI](https://fastapi.tiangolo.com/) (Python)
 * **Database & Auth:** [Supabase](https://supabase.io/) (PostgreSQL & Google OAuth)
 * **Deployment:** Vercel (Frontend) & Render (Backend)
